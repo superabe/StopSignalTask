@@ -1,0 +1,5 @@
+scipy>=4.1.3
+numpy>=1.9
+pyserial>=2.7
+matplotlib>=1.4
+PyQt5
