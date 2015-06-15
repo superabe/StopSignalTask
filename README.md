@@ -57,9 +57,9 @@ Logics
 ------
 * The training box and test procedure are as follows
 
-<img src="docs/img/ssttrainbox.png" height="200px" width="300px" />
+<img src="docs/img/ssttrainbox.png" height="400px" width="600px" />
 
-<img src="docs/img/sstprocedure.png" height="200px" width="300px" />
+<img src="docs/img/sstprocedure.png" height="400px" width="600px" />
 
 * Training Procedure
 
