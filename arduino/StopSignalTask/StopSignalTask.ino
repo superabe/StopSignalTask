@@ -236,6 +236,81 @@ class Flasher
     }
 };
 
+
+// add Laser Class used for Optogenetics
+class Laser
+{
+  public:
+    int ledpin;
+    bool isON;
+    int state;
+    int interval;
+    long onMillis;
+    long laserStartMillis;
+    long duration; 
+    Laser(int pin)
+    {
+      laserpin = pin;
+      pinMode(ledpin, OUTPUT);
+      isON = false;
+      state = LOW;
+      onMillis=0;
+      laserStartMillis=0;
+    }
+    void setParams(int freq, long dur)
+    {
+      // dur: millisecond
+      interval = 1024/freq;
+      duration = dur;
+    }
+    void start()
+    {
+      state=HIGH;
+      digitalWrite(laserpin, state);
+      isOn=true;
+      laserStartMillis=newMillis();
+    }
+    
+    void on()
+    {
+      state=HIGH;
+      digitalWrite(laserpin, state);
+      isON = true;
+      onMillis=newMillis();
+    }
+    void off()
+    {
+      state=LOW;
+      digitalWrite(laserpin, state);
+      isON = false;
+    }
+    void updateState(long t)
+    {
+      if(t-laserStartMillis<duration){
+        if(isON){
+           if(t-onMillis>interval){
+             onMillis=t;
+             state=!state;
+             digitalWrite(laserpin,state);
+           }
+        } 
+      }else{
+        off();
+      }
+    }
+    
+    int getPin()
+    {
+      return ledpin;
+    }
+    bool isOn()
+    {
+      return isON;
+    }
+};
+
+
+
 //PhotoBeam object
 class PhotoBeam
 {
