@@ -21,6 +21,7 @@
 int pin_flasherL = 6;
 int pin_flasherM = 7;
 int pin_flasherR = 8;
+int pin_laser = 9;
 int pin_reward = 4;
 int pin_stop_signal = 5;
 int pin_photobeamL = A0;
@@ -431,7 +432,7 @@ class ExperimentalProcedure
 };
 
 
-
+// Instantiations of hardwares
 Flasher f[3]={
   Flasher(pin_flasherL),
   Flasher(pin_flasherM),
@@ -446,6 +447,8 @@ PhotoBeam pb[3]={
 RewardValve reward(pin_reward);
 
 StopSignal stopS(pin_stop_signal, 100);
+
+Laser laser(pin_laser);
 
 
 class Stage1:public ExperimentalProcedure
@@ -935,13 +938,14 @@ class Test:public ExperimentalProcedure
   int stopTrialsNum;  // the number of stop trials in the total trials.
   int blockLength;
   int blockNumber;
+  bool isLaserOn;
   int ssd; // Stop signal delay
   bool ssdCatched;
   String initialSSD;
   
   public:
   Test():ExperimentalProcedure(){}
-  void setParams(long limitHold, char s='l', int sessionNumber=320, int baselineNumber=20, int stopTrialsNumber=60, long rdelay=5000, int blockL=100, int blockN=3){
+  void setParams(long limitHold, char s='l', int sessionNumber=320, int baselineNumber=20, int stopTrialsNumber=60, long rdelay=5000, int blockL=100, int blockN=3, int isLaser=0){
     limitedHold = limitHold;
     side=s;
     lh = false;
@@ -960,6 +964,11 @@ class Test:public ExperimentalProcedure
     stopTrialsNum = stopTrialsNumber;
     blockLength = blockL;
     blockNumber = blockN;
+    if(isLaser==1){
+      isLaserOn=true;
+    }else{
+      isLaserOn=false;
+    }
     requiredDelay=rdelay;
     stopSignal=&stopS;
     if(side=='l')
@@ -1226,8 +1235,11 @@ long reward_volume;
 int blockLength;
 int blockNumber;
 int blinkFreq;
+int isLaser;
+int laserFreq;
+long laserDur;
 
-String inputArguments[11];
+String inputArguments[14];
 String singleArgument="";
 int counter=0;
 boolean argumentsComplete = false;
@@ -1287,6 +1299,11 @@ void setup()
   f[0].setParams(blinkFreq);
   f[1].setParams(blinkFreq);
   f[2].setParams(blinkFreq);
+
+  isLaser=inputArguments[11].toInt();
+  laserFreq=inputArguments[12].toInt();
+  laserDur=inputArguments[13].toInt();
+  laser.setParams(laserFreq, laserDur);
   
   if(stage==1){
     s1.setParams(rdelay);
@@ -1301,7 +1318,7 @@ void setup()
     s4.setParams(lh, side, len, baseline, stopNum,rdelay);
     ep=&s4;
   }else if(stage==5){
-    test.setParams(lh, side, len, baseline, stopNum,rdelay, blockLength, blockNumber);
+    test.setParams(lh, side, len, baseline, stopNum,rdelay, blockLength, blockNumber, isLaser);
     ep=&test;
   }else if(stage==6){
     ep=&tb;
