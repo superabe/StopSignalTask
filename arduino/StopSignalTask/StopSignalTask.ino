@@ -264,13 +264,6 @@ class Laser
       interval = 1024/freq;
       duration = dur;
     }
-    void start()
-    {
-      state=HIGH;
-      digitalWrite(laserpin, state);
-      isON=true;
-      laserStartMillis=newMillis();
-    }
     
     void on()
     {
@@ -278,6 +271,7 @@ class Laser
       digitalWrite(laserpin, state);
       isON = true;
       onMillis=newMillis();
+      laserStartMillis=newMillis();
     }
     void off()
     {
@@ -922,6 +916,8 @@ class Test:public ExperimentalProcedure
   PhotoBeam *pbr;
   //stop signal
   StopSignal *stopSignal;
+  //Laser
+  Laser *laserBlue;
   
   bool lh;   //Limited Hold
   char side;
@@ -938,6 +934,7 @@ class Test:public ExperimentalProcedure
   int stopTrialsNum;  // the number of stop trials in the total trials.
   int blockLength;
   int blockNumber;
+  bool isLaserExp;
   bool isLaserOn;
   int ssd; // Stop signal delay
   bool ssdCatched;
@@ -965,10 +962,12 @@ class Test:public ExperimentalProcedure
     blockLength = blockL;
     blockNumber = blockN;
     if(isLaser==1){
-      isLaserOn=true;
+      isLaserExp=true;
+      laserBlue=&laser;
     }else{
-      isLaserOn=false;
+      isLaserExp=false;
     }
+    isLaserOn=false;
     requiredDelay=rdelay;
     stopSignal=&stopS;
     if(side=='l')
@@ -1036,6 +1035,11 @@ class Test:public ExperimentalProcedure
       fm->updateState(t);
       fr->updateState(t);
       fl->updateState(t);
+      if(isLaserExp){
+        if(laserBlue->isOn()){
+          laserBlue->updateState(t);
+        }
+      }
       switch(ex_status){
         case wandering:
           ex_status=pokeInR;
@@ -1072,6 +1076,9 @@ class Test:public ExperimentalProcedure
           break;
         case pokeOutR:
           if(!pbr->isInterrupted()){
+            if(isLaserExp){
+              laserBlue->on();     //    start laser illumation@@@@@@@@@@@@@@@@@@
+            }
             if(!isStopTrial){
               ex_status=pokeInL;
               lh=true;

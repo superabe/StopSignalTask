@@ -9,12 +9,7 @@ import datetime
 from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QSizePolicy,QMessageBox
 from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QPixmap,QValidator, QIntValidator
-from .sst_mainwindow import Ui_MainWindow
-from .sst_newTraining import Ui_Dialog
 
-from .SerialConnection import SerialConnection
-from .SerialMonitor import SerialMonitor
-from .Data import Data
 import numpy as np
 import matplotlib
 matplotlib.use("Qt5Agg")
@@ -22,6 +17,11 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from .sst_summary import calCR, calRT, median, calSSRT2
+from .sst_mainwindow import Ui_MainWindow
+from .sst_newTraining import Ui_Dialog
+from .SerialConnection import SerialConnection
+from .SerialMonitor import SerialMonitor
+from .Data import Data
 
 
 class mainWindow(QMainWindow, Ui_MainWindow):
@@ -125,7 +125,10 @@ class mainWindow(QMainWindow, Ui_MainWindow):
             stopNum=int((int(params['blockLength'])*float(params['stopPercent']))*int(params['blockNumber']))
         else:
             stopNum=int((int(params['sessionLength'])-int(params['baseline']))*float(params['stopPercent']))
-        paramsToSend = str(params['stage'])+','+params['direction']+','+params['lh']+','+params['sessionLength']+','+params['baseline']+','+str(stopNum)+','+params['punishment']+','+params['blockLength']+','+params['blockNumber']+','+params['reward']+','+params['blinkerFreq']+','+'\n'
+        paramsToSend = str(params['stage'])+','+params['direction']+','+params['lh']+','\
+                           +params['sessionLength']+','+params['baseline']+','+str(stopNum)+','\
+                           +params['punishment']+','+params['blockLength']+','+params['blockNumber']+','\
+                           +params['reward']+','+params['blinkerFreq']+','+'\n'
         self.connection.write(paramsToSend)
         print(paramsToSend)
         print('params sent')

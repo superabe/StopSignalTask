@@ -3,3 +3,5 @@ test/
 build/
 *~
 *.txt
+dist/
+sst.egg-info/
