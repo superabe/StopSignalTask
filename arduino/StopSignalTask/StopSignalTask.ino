@@ -126,7 +126,7 @@ bool checkIfStop(long t, int k)
 }
 
 // Output data to Serial for communication with python
-void writeData(char str[], long t){
+void writeData(const char str[], long t){
   Serial.print(str);
   Serial.print(',');
   Serial.println(t);
@@ -241,7 +241,7 @@ class Flasher
 class Laser
 {
   public:
-    int ledpin;
+    int laserpin;
     bool isON;
     int state;
     int interval;
@@ -251,7 +251,7 @@ class Laser
     Laser(int pin)
     {
       laserpin = pin;
-      pinMode(ledpin, OUTPUT);
+      pinMode(laserpin, OUTPUT);
       isON = false;
       state = LOW;
       onMillis=0;
@@ -267,7 +267,7 @@ class Laser
     {
       state=HIGH;
       digitalWrite(laserpin, state);
-      isOn=true;
+      isON=true;
       laserStartMillis=newMillis();
     }
     
@@ -301,7 +301,7 @@ class Laser
     
     int getPin()
     {
-      return ledpin;
+      return laserpin;
     }
     bool isOn()
     {
