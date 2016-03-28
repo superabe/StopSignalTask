@@ -21,6 +21,7 @@ class Data:
         self.trialsSkipped = []
         self.missedData = []
         self.missedStopCheck = []
+        self.laserOn = []
         
     def write(self,incomingData):
         # append timestamps of different events
@@ -59,6 +60,8 @@ class Data:
                 self.SSDs.append(t/1.024)
             elif(event=='TS'):#trialSkipped
                 self.trialsSkipped.append(int(t))
+            elif(event=='L'):#Laser on timestamps
+                self.laserOn.append(t/1.024)
             elif(event=='Missing Data'):
                 self.missedData.append(t)
             elif(event=='check stop timeout'):
@@ -74,4 +77,4 @@ class Data:
                 'rewardStart':self.rewardStart,'stopSignalStart':self.stopSignalStart,
                 'isRewarded':self.isRewarded,'trialType':self.trialType[0:len(self.pokeInL)],
                 'SSDs':self.SSDs,'trialsSkipped':self.trialsSkipped,'missedData':self.missedData,
-                'missedStopCheck':self.missedStopCheck}
+                'missedStopCheck':self.missedStopCheck, 'laserOn':self.laserOn}

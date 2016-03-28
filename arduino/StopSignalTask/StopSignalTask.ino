@@ -5,6 +5,7 @@
 #include <DS3232RTC.h>
 #include <Time.h>
 #include <Wire.h>
+#include <stdlib.h>
 
 #define wandering 0xF1
 #define pokeInM 0xF2
@@ -13,6 +14,7 @@
 #define pokeOutL 0xF5
 #define pokeInR 0xF6
 #define pokeOutR 0xF7
+#define pokeOutRConfirm 0xE0
 #define rewardStart 0xF8
 #define rewardEnd 0xF9
 #define waitToSignalStop 0xF0
@@ -49,6 +51,10 @@ void isr(){
 long newMillis(){
   return time_tick;
 }
+
+// create two operators for creating arraies using dynamic memories.
+void* operator new(size_t size) { return malloc(size); }
+void operator delete(void* ptr) { if (ptr) free(ptr); }
 
 //Random Generator: Generate a length of N random numbers sorted sequence from a given range.
 
@@ -245,10 +251,11 @@ class Laser
     int laserpin;
     bool isON;
     int state;
-    int interval;
     long onMillis;
     long laserStartMillis;
-    long duration; 
+    int interval;
+    int pulseDuration;
+    long totalDuration; 
     Laser(int pin)
     {
       laserpin = pin;
@@ -258,11 +265,12 @@ class Laser
       onMillis=0;
       laserStartMillis=0;
     }
-    void setParams(int freq, long dur)
+    void setParams(int freq, int pulseDur, long totalDur)
     {
       // dur: millisecond
       interval = 1024/freq;
-      duration = dur;
+      pulseDuration = pulseDur;
+      totalDuration = totalDur;
     }
     
     void on()
@@ -271,7 +279,8 @@ class Laser
       digitalWrite(laserpin, state);
       isON = true;
       onMillis=newMillis();
-      laserStartMillis=newMillis();
+      laserStartMillis=onMillis;
+      writeData("L",onMillis);
     }
     void off()
     {
@@ -281,12 +290,16 @@ class Laser
     }
     void updateState(long t)
     {
-      if(t-laserStartMillis<duration){
+      if(t-laserStartMillis<totalDuration){
         if(isON){
-           if(t-onMillis>interval){
-             onMillis=t;
-             state=!state;
+           if(t-onMillis>=pulseDuration && t-onMillis<interval){
+             state=LOW;
              digitalWrite(laserpin,state);
+             }else if(t-onMillis>=interval){
+              onMillis=t;
+              state=HIGH;
+              digitalWrite(laserpin, state);
+              writeData("L", onMillis);
            }
         } 
       }else{
@@ -925,6 +938,8 @@ class Test:public ExperimentalProcedure
   bool stopChecked;
   long limitedHold;
   long lhStartTime;
+  long pokeOutRTime;
+  long pokeOutRConfirmRequiredInterval;
   long stopDelayOnTime;
   bool stopDelayOn;
   bool stopSkipped;
@@ -950,6 +965,8 @@ class Test:public ExperimentalProcedure
     stopChecked=false;
     lhStartTime=0;
     stopDelayOnTime=0;
+    pokeOutRTime=0;
+    pokeOutRConfirmRequiredInterval=10;
     stopDelayOn=false;
     stopSkipped=false;
     trialNum = 0;
@@ -1035,7 +1052,7 @@ class Test:public ExperimentalProcedure
       fm->updateState(t);
       fr->updateState(t);
       fl->updateState(t);
-      if(isLaserExp){
+      if(isLaserExp&&trialNum>baselineLength){
         if(laserBlue->isOn()){
           laserBlue->updateState(t);
         }
@@ -1076,24 +1093,34 @@ class Test:public ExperimentalProcedure
           break;
         case pokeOutR:
           if(!pbr->isInterrupted()){
-            if(isLaserExp){
-              laserBlue->on();     //    start laser illumation@@@@@@@@@@@@@@@@@@
+            pokeOutRTime=t;
+            ex_status=pokeOutRConfirm;
+          }  
+          break;
+        case pokeOutRConfirm:    // confirm the rat is indeed poke out R.
+          if(!pbr->isInterrupted()){
+            if(t-pokeOutRTime>pokeOutRConfirmRequiredInterval){
+              if(isLaserExp&&trialNum>baselineLength){
+                laserBlue->on();     //    start laser illumation@@@@@@@@@@@@@@@@@@
+              }
+              if(!isStopTrial){
+                ex_status=pokeInL;
+                lh=true;
+                lhStartTime=pokeOutRTime;
+              }else if(isStopTrial){
+                ex_status=waitToSignalStop;
+                stopDelayOnTime=pokeOutRTime;
+                stopDelayOn=true;
+                //fl->off();
+                //fm->on();
+              }
+              if(side=='l')
+                writeData("OR",pokeOutRTime);
+              else
+                writeData("OL",pokeOutRTime);
             }
-            if(!isStopTrial){
-              ex_status=pokeInL;
-              lh=true;
-              lhStartTime=t;
-            }else if(isStopTrial){
-              ex_status=waitToSignalStop;
-              stopDelayOnTime=t;
-              stopDelayOn=true;
-              //fl->off();
-              //fm->on();
-            }
-            if(side=='l')
-              writeData("OR",t);
-            else
-              writeData("OL",t);
+          }else{
+            ex_status=pokeOutR;
           }
           break;
         case waitToSignalStop:
@@ -1208,10 +1235,13 @@ class Test:public ExperimentalProcedure
 
 class TestBox:public ExperimentalProcedure
 {
+  long lastPBCheckTime;
+  long requiredDelay;
   public:
   TestBox():ExperimentalProcedure(){}
   void setParams(long rdelay){
     requiredDelay=rdelay;
+    lastPBCheckTime=newMillis();
   }
   
   void updating(long t){
@@ -1223,8 +1253,19 @@ class TestBox:public ExperimentalProcedure
         reward.off();
       }else if(inByte=='f'){
         stopS.on();
+      }else if(inByte=='l'){
+        laser.on();
+      }else if(inByte=='x'){
+        laser.off();
       }
-    }      
+    }
+    if(t-lastPBCheckTime>requiredDelay){
+      writeData("PbL", pb[0].getVoltage());
+      writeData("PbM", pb[1].getVoltage());
+      writeData("PbR", pb[2].getVoltage());
+      writeData("...",0);
+      lastPBCheckTime=t;
+    }
   }
 };
 
@@ -1244,6 +1285,7 @@ int blockNumber;
 int blinkFreq;
 int isLaser;
 int laserFreq;
+int pulseDur;
 long laserDur;
 
 String inputArguments[14];
@@ -1309,8 +1351,9 @@ void setup()
 
   isLaser=inputArguments[11].toInt();
   laserFreq=inputArguments[12].toInt();
-  laserDur=inputArguments[13].toInt();
-  laser.setParams(laserFreq, laserDur);
+  pulseDur=inputArguments[13].toInt();
+  laserDur=inputArguments[14].toInt();
+  laser.setParams(laserFreq, pulseDur, laserDur);
   
   if(stage==1){
     s1.setParams(rdelay);
@@ -1328,6 +1371,7 @@ void setup()
     test.setParams(lh, side, len, baseline, stopNum,rdelay, blockLength, blockNumber, isLaser);
     ep=&test;
   }else if(stage==6){
+    tb.setParams(1000);
     ep=&tb;
   }else{
     Serial.println("Wrong Arguments!,0");

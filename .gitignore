@@ -1,7 +1,8 @@
 *.pyc
 test/
-build/
+build*/
 *~
 *.txt
 dist/
 sst.egg-info/
+stopsignaltask*/

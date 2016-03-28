@@ -60,6 +60,8 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.testReward_button.pressed.connect(self.testRewardStart)
         self.testReward_button.released.connect(self.testRewardEnd)
         self.testStopSignal_button.pressed.connect(self.testStopSignal)
+        self.testLaser_button.pressed.connect(self.testLaserOn)
+        self.testLaser_button.released.connect(self.testLaserOff)
         self.timerForTimeDisplay.timeout.connect(self.timeElapsedLabelUpdate)
         self.timerForRuningDisplay.timeout.connect(self.runingUpdate)
         self.actionAbout.triggered.connect(self.about)
@@ -90,7 +92,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.sessionStartTime=time.clock()
 
         self.trialNumLabel.setText('0')
-        self.runingLabel.setPixmap(QPixmap(':/on.png').scaled(self.runingLabel.size()))
+        self.runingLabel.setPixmap(QPixmap(':/on.png'))#.scaled(self.runingLabel.size()))
 
         self.timerForTimeDisplay.start(1000)
         self.timerForRuningDisplay.start(500)
@@ -112,11 +114,19 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.ssrtLabel.setText('0 ms')
         # reset the histogram in rtDisplay
         self.histPlot.reset()
+
         params = self.getParams()
-        self.descriptionalLabel.setText('Stage: '+str(params['stage'])+'\n'+'Direction: '+params['direction']+'\n')
+        if params['direction']=='l':
+            textDirection = 'R>L>M'
+        else:
+            textDirection = 'L>R>M'
+        descriptionalText = 'stage: '+str(params['stage'])+'\n'\
+                            +'direction: '+textDirection+'\n'
+        self.descriptionalLabel.setText(descriptionalText)
         if(params['stage']==6):
                 self.testReward_button.setEnabled(True)
                 self.testStopSignal_button.setEnabled(True)
+                self.testLaser_button.setEnabled(True)
         
     def sendParams(self):
         # send parameters to arduino control program through serial communication
@@ -128,7 +138,8 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         paramsToSend = str(params['stage'])+','+params['direction']+','+params['lh']+','\
                            +params['sessionLength']+','+params['baseline']+','+str(stopNum)+','\
                            +params['punishment']+','+params['blockLength']+','+params['blockNumber']+','\
-                           +params['reward']+','+params['blinkerFreq']+','+'\n'
+                           +params['reward']+','+params['blinkerFreq']+','+params['isLaser']+','\
+                           +params['laserFreq']+','+params['pulseDur']+','+params['laserDur']+','+'\n'
         self.connection.write(paramsToSend)
         print(paramsToSend)
         print('params sent')
@@ -199,10 +210,11 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.actionNew_Training.setEnabled(True)
         self.testReward_button.setEnabled(False)
         self.testStopSignal_button.setEnabled(False)
+        self.testLaser_button.setEnabled(False)
         self.timerForTimeDisplay.stop()
         self.timerForRuningDisplay.stop()
         self.runingLabel.setVisible(True)
-        self.runingLabel.setPixmap(QPixmap('off.png').scaled(self.runingLabel.size()))
+        self.runingLabel.setPixmap(QPixmap('off.png'))#.scaled(self.runingLabel.size()))
         self.timeSinceStart=0
         
         # save data to txt file
@@ -211,17 +223,17 @@ class mainWindow(QMainWindow, Ui_MainWindow):
        
         
         # calculate ssrt if stage==5
-        data = self.serialMonitor.getData().getData()
-        if int(self.getParams()['stage'])==5:
-            if self.getParams()['direction']=='l':
-                ssrt = calSSRT2(data['pokeOutR'],data['pokeInL'],data['SSDs'],data['trialType'],
-                                int(self.getParams()['baseline']),int(self.getParams()['blockNumber']),
-                                int(self.getParams()['blockLength']),float(self.getParams()['stopPercent']))
-            else:
-                ssrt = calSSRT2(data['pokeOutL'],data['pokeInR'],data['SSDs'],data['trialType'],
-                                int(self.getParams()['baseline']),int(self.getParams()['blockNumber']),
-                                int(self.getParams()['blockLength']),float(self.getParams()['stopPercent']))    
-            self.ssrtLabel.setText(str(ssrt)+' ms')
+        # data = self.serialMonitor.getData().getData()
+        # if int(self.getParams()['stage'])==5:
+        #     if self.getParams()['direction']=='l':
+        #         ssrt = calSSRT2(data['pokeOutR'],data['pokeInL'],data['SSDs'],data['trialType'],
+        #                         int(self.getParams()['baseline']),int(self.getParams()['blockNumber']),
+        #                         int(self.getParams()['blockLength']),float(self.getParams()['stopPercent']))
+        #     else:
+        #         ssrt = calSSRT2(data['pokeOutL'],data['pokeInR'],data['SSDs'],data['trialType'],
+        #                         int(self.getParams()['baseline']),int(self.getParams()['blockNumber']),
+        #                         int(self.getParams()['blockLength']),float(self.getParams()['stopPercent']))    
+        #     self.ssrtLabel.setText(str(ssrt)+' ms')
         
         # close serial monitor
         if self.serialMonitor is not None:
@@ -286,6 +298,8 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         f.write(str(data['missedData']))
         f.write('\nCheck Stop Timeout\n')
         f.write(str(data['missedStopCheck']))
+        f.write('\nLaser ON Timestamps\n')
+        f.write(str(data['laserOn']))
         f.write('\n')
         f.close()
     
@@ -306,6 +320,13 @@ It may be used and modified with no restriction."""
 
     def testStopSignal(self):
         self.connection.write('f')
+
+    def testLaserOn(self):
+        self.connection.write('l')
+
+    def testLaserOff(self):
+        self.connection.write('x')
+
 
 class NewTraining(QDialog, Ui_Dialog):
     def __init__(self):
@@ -347,9 +368,12 @@ class NewTraining(QDialog, Ui_Dialog):
         self.blinkerFreq.textChanged.emit(self.blinkerFreq.text())            
         
         self.stageComboBox.activated.connect(self.stageSelection)
+
+        self.directionComboBox.activated.connect(self.directionSelection)
             
         self.data=dict()
         self.data['stage']=1
+        self.data['direction']='l'
         
     
     def check_lineedit_state(self, *args, **kwargs):
@@ -366,42 +390,53 @@ class NewTraining(QDialog, Ui_Dialog):
    
     def stageSelection(self, stage):
         self.data['stage']=stage+1
-        if stage <3:
-            self.stopPercentLabel.setEnabled(False)
+        if stage <2 or stage==5:
             self.gStopPercent.setEnabled(False)
-            self.blockLengthLabel.setEnabled(False)
             self.blockLengthEdit.setEnabled(False)
-            self.blockNumberLabel.setEnabled(False)
             self.blockNumberEdit.setEnabled(False)
-            self.stopPercentLabel.setEnabled(False)
+            self.gLH.setEnabled(False)
+            self.gLaserFreq.setEnabled(False)
+            self.gPulseDur.setEnabled(False)
+            self.gLaserDur.setEnabled(False)
+        elif stage==2:
             self.gStopPercent.setEnabled(False)
+            self.blockLengthEdit.setEnabled(False)
+            self.blockNumberEdit.setEnabled(False)
+            self.gLH.setEnabled(True)
+            self.gLaserFreq.setEnabled(False)
+            self.gPulseDur.setEnabled(False)
+            self.gLaserDur.setEnabled(False)
         elif stage==3:
-            self.stopPercentLabel.setEnabled(False)
-            self.gStopPercent.setEnabled(False)
-            self.blockLengthLabel.setEnabled(False)
-            self.blockLengthEdit.setEnabled(False)
-            self.blockNumberLabel.setEnabled(False)
-            self.blockNumberEdit.setEnabled(False)
-            self.stopPercentLabel.setEnabled(True)
             self.gStopPercent.setEnabled(True)
-        elif stage==4:
-            self.stopPercentLabel.setEnabled(True)
-            self.gStopPercent.setEnabled(True)
-            self.stopPercentLabel.setEnabled(True)
-            self.gStopPercent.setEnabled(True)
-            self.blockLengthLabel.setEnabled(True)
             self.blockLengthEdit.setEnabled(True)
-            self.blockNumberLabel.setEnabled(True)
             self.blockNumberEdit.setEnabled(True)
+            self.gLH.setEnabled(True)
+            self.gLaserFreq.setEnabled(False)
+            self.gPulseDur.setEnabled(False)
+            self.gLaserDur.setEnabled(False)
+        elif stage==4:
+            self.gStopPercent.setEnabled(True)
+            self.blockLengthEdit.setEnabled(True)
+            self.blockNumberEdit.setEnabled(True)
+            self.gLH.setEnabled(True)
+            self.gLaserFreq.setEnabled(True)
+            self.gPulseDur.setEnabled(True)
+            self.gLaserDur.setEnabled(True)
+
+    def directionSelection(self, direction):
+        if direction == 0:
+            self.data['direction'] = 'l'
+        else:
+            self.data['direction'] = 'r'
         
     
     def getParameters(self):
   
         # configurations
-        if(self.direction_left.isChecked()):
-            self.data['direction']='l'
-        else:
-            self.data['direction']='r'
+        # if(self.direction_left.isChecked()):
+        #     self.data['direction']='l'
+        # else:
+        #     self.data['direction']='r'
         
         self.data['baseline']=self.gbaseline.text()
         self.data['sessionLength']=self.gSessionLength.text()
@@ -409,14 +444,21 @@ class NewTraining(QDialog, Ui_Dialog):
         self.data['reward']=str(int(int(self.gReward.text())*1.024))
         self.data['punishment']=str(int(int(self.gPunishment.text())*1.024))
         self.data['blinkerFreq']=self.blinkerFreq.text()
+        self.data['isLaser']='0'
         if self.data['stage']<4 or self.data['stage']==6:
             self.data['stopPercent']='0'
             self.data['blockLength']='0'
             self.data['blockNumber']='0'
+            self.data['laserFreq']='0'
+            self.data['pulseDur']='0'
+            self.data['laserDur']='0'
         elif self.data['stage']==4:
             self.data['stopPercent']=self.gStopPercent.text()
             self.data['blockLength']='0'
             self.data['blockNumber']='0'
+            self.data['laserFreq']='0'
+            self.data['pulseDur']='0'
+            self.data['laserDur']='0'
             stopTrialNum = random.sample(list(range(int(self.data['baseline'])+1,int(self.data['sessionLength'])+1)),
                                          int(float(self.data['stopPercent'])*(int(self.data['sessionLength'])-int(self.data['baseline']))))
             self.data['stopTrialNum']=set(stopTrialNum)
@@ -429,6 +471,13 @@ class NewTraining(QDialog, Ui_Dialog):
             self.data['stopPercent']=self.gStopPercent.text()
             self.data['blockLength']=self.blockLengthEdit.text()
             self.data['blockNumber']=self.blockNumberEdit.text()
+            self.data['laserFreq']=self.gLaserFreq.text()
+            self.data['pulseDur']=str(int(int(self.gPulseDur.text())*1.024))
+            self.data['laserDur']=str(int(int(self.gLaserDur.text())*1.024))
+
+            if int(self.data['laserFreq'])>0 and int(self.data['pulseDur'])>0 and int(self.data['laserDur'])>0:
+                self.data['isLaser']='1'
+
             ###Stop trial Randomization###
             stopTrialNum=[]
             for i in range(int(self.data['blockNumber'])):
@@ -476,7 +525,7 @@ class MyHistCanvas(FigureCanvas):
 # main entry point of the script    
 def main():
     speed = 115200   # communication speed
-    port = 'COM8'   # port used for communication
+    port = 'COM3'   # port used for communication
             
     app = QApplication(sys.argv)
     window = mainWindow(port, speed)
