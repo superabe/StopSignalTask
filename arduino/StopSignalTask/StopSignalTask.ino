@@ -53,68 +53,12 @@ long newMillis(){
 }
 
 // create two operators for creating arraies using dynamic memories.
-void* operator new(size_t size) { return malloc(size); }
-void operator delete(void* ptr) { if (ptr) free(ptr); }
+//void* operator new(size_t size) { return malloc(size); }
+//void operator delete(void* ptr) { free(ptr); }
 
-//Random Generator: Generate a length of N random numbers sorted sequence from a given range.
 
-int *generateStopTrialNum(int stopArray[], int startN, int endN, int N){
-  /* Function to generate N random numbers between startN (inclusive) and endN (exlusive).
-     endN must be bigger than endN.
-  */
-  int vals[endN-startN];
-   
-  for (int i=0; i<endN-startN;i++)
-    vals[i]=i+startN;
-    
-  for (int i=0; i<N;i++)
-  {
-    int r = TrueRandom.random(i, endN-startN);    // select from a decreasing set
-    stopArray[i]=vals[r];
-    swap(vals, r, i);     // switch the chosen one with the last of the selection set.
-  }
-  //for (int i=0; i<N; i++)
-  //  stopArray[i] = vals[i];
 
-  
-  for (int i=0;i<N;i++){
-    for(int j=0;j<N-i-1;j++){
-      if(stopArray[j]>stopArray[j+1]){
-        int temp=stopArray[j];
-        stopArray[j]=stopArray[j+1];
-        stopArray[j+1]=temp;
-      }
-    }
-  }
-  return stopArray;
- }
- 
-// Helper function: swap two values in an array
-void swap(int *vals, int a, int b)
-{
-  int t = vals[a];
-  vals[a] = vals[b];
-  vals[b] = t;
-}
-// Helper function: check if the current trial is stop trial
 /*
-bool checkIfStop(int trialNum, int *stopTrials, int imin, int imax)
-{
-  //imin is the first index usually 0; imax is the size of stopTrials - 1
-  if(imin>imax){
-    return false;
-  }else{
-    int mid=(-imin+imax)/2+imin;
-    if(trialNum>stopTrials[mid]){
-      return checkIfStop(trialNum, stopTrials, mid+1, imax);
-    }else if(trialNum<stopTrials[mid]){
-      return checkIfStop(trialNum, stopTrials, imin, mid-1);
-    }else{
-      return true;
-    }
-  }
-}
-*/
 bool checkIfStop(long t, int k)
 {
   // 20ms timeout
@@ -131,7 +75,7 @@ bool checkIfStop(long t, int k)
   writeData("check stop timeout",k);
   return false;
 }
-
+*/
 // Output data to Serial for communication with python
 void writeData(const char str[], long t){
   Serial.print(str);
@@ -742,10 +686,11 @@ class Stage4:public ExperimentalProcedure
   int sessionLength;  //total trial number (320 trials usually)
   int baselineLength; //baseline trial number (20 trials usually)
   int stopTrialsNum;  // the number of stop trials in the total trials.
+  int *stopArray;
   
   public:
   Stage4():ExperimentalProcedure(){}
-  void setParams(long limitHold, char s='l', int sessionNumber=320, int baselineNumber=20, int stopTrialsNumber=60, long rdelay=5000){
+  void setParams(long limitHold, char s, int sessionNumber, int baselineNumber, int stopTrialsNumber, long rdelay, int stopArr[]){
     limitedHold = limitHold;
     side=s;
     lh = false;
@@ -757,6 +702,7 @@ class Stage4:public ExperimentalProcedure
     baselineLength = baselineNumber;
     stopTrialsNum = stopTrialsNumber;
     requiredDelay=rdelay;
+    stopArray = stopArr;
     stopSignal=&stopS;
     if(side=='l')
     {
@@ -773,6 +719,14 @@ class Stage4:public ExperimentalProcedure
       pbl = &pb[2];
       pbm = &pb[1];
       pbr = &pb[0];
+    }
+  }
+  
+  void printStopArray(){
+    for(int i=0;i<stopTrialsNum;i++){
+      Serial.print(i);
+      Serial.print(",");
+      Serial.println(stopArray[i]);
     }
   }
     
@@ -809,7 +763,7 @@ class Stage4:public ExperimentalProcedure
           writeData("trialNum",trialNum);
           if(trialNum>baselineLength){
             stopChecked=false;
-            isStopTrial = checkIfStop(t, trialNum);
+            isStopTrial = checkIfStop(trialNum, stopArray, 0, stopTrialsNum-1);
             if(isStopTrial){
               writeData("TT",2);
             }else{
@@ -954,10 +908,11 @@ class Test:public ExperimentalProcedure
   int ssd; // Stop signal delay
   bool ssdCatched;
   String initialSSD;
+  int *stopArray;
   
   public:
   Test():ExperimentalProcedure(){}
-  void setParams(long limitHold, char s='l', int sessionNumber=320, int baselineNumber=20, int stopTrialsNumber=60, long rdelay=5000, int blockL=100, int blockN=3, int isLaser=0){
+  void setParams(long limitHold, char s, int sessionNumber, int baselineNumber, int stopTrialsNumber, long rdelay, int blockL, int blockN, int stopArr[], int isLaser){
     limitedHold = limitHold;
     side=s;
     lh = false;
@@ -966,7 +921,7 @@ class Test:public ExperimentalProcedure
     lhStartTime=0;
     stopDelayOnTime=0;
     pokeOutRTime=0;
-    pokeOutRConfirmRequiredInterval=10;
+    pokeOutRConfirmRequiredInterval=10;  //10ms to confirm the behavior is indeed happened.
     stopDelayOn=false;
     stopSkipped=false;
     trialNum = 0;
@@ -978,6 +933,9 @@ class Test:public ExperimentalProcedure
     stopTrialsNum = stopTrialsNumber;
     blockLength = blockL;
     blockNumber = blockN;
+    stopArray = stopArr;
+    
+    
     if(isLaser==1){
       isLaserExp=true;
       laserBlue=&laser;
@@ -1002,6 +960,13 @@ class Test:public ExperimentalProcedure
       pbl = &pb[2];
       pbm = &pb[1];
       pbr = &pb[0];
+    }
+  }
+  void printStopArray(){
+    for(int i=0;i<stopTrialsNum;i++){
+      Serial.print(i);
+      Serial.print(",");
+      Serial.println(stopArray[i]);
     }
   }
     
@@ -1070,7 +1035,7 @@ class Test:public ExperimentalProcedure
           // check if stop
           if(trialNum>baselineLength){
             stopChecked=false;
-            isStopTrial = checkIfStop(t,trialNum);
+            isStopTrial = checkIfStop(trialNum, stopArray, 0, stopTrialsNum-1);
             if(isStopTrial){
               writeData("TT",2);
             }else{
@@ -1288,7 +1253,7 @@ int laserFreq;
 int pulseDur;
 long laserDur;
 
-String inputArguments[14];
+String inputArguments[15];
 String singleArgument="";
 int counter=0;
 boolean argumentsComplete = false;
@@ -1314,6 +1279,62 @@ void getParams() {
   }
 }
 
+//Random Generator: Generate a length of N random numbers sorted sequence from a given range.
+
+void generateStopTrialNum(int stopArray[], int startN, int endN, int N){
+  /* Function to generate N random numbers between startN (inclusive) and endN (exlusive).
+     endN must be bigger than N.
+  */
+  int temp0[endN-startN];
+   
+  for (int i=0; i<endN-startN;i++)
+    temp0[i]=i+startN;
+    
+  for (int i=0; i<N;i++)
+  {
+    int r = TrueRandom.random(i, endN-startN+1);    // select from a decreasing set
+    stopArray[i]=temp0[r];
+    swap(temp0, r, i);     // switch the chosen one with the last of the selection set.
+  }
+  //for (int i=0; i<N; i++)
+  //  stopArray[i] = vals[i];
+
+  
+  for (int i=0;i<N;i++){
+    for(int j=0;j<N-i-1;j++){
+      if(stopArray[j]>stopArray[j+1]){
+        int temp=stopArray[j];
+        stopArray[j]=stopArray[j+1];
+        stopArray[j+1]=temp;
+      }
+    }
+  }
+ }
+
+// Helper function: swap two values in an array
+void swap(int vals[], int a, int b)
+{
+  int t = vals[a];
+  vals[a] = vals[b];
+  vals[b] = t;
+}
+// Helper function: check if the current trial is stop trial
+bool checkIfStop(int trialNum, int stopTrials[], int imin, int imax)
+{
+  //imin is the first index usually 0; imax is the size of stopTrials - 1
+  if(imin>imax){
+    return false;
+  }else{
+    int mid=(-imin+imax)/2+imin;
+    if(trialNum>stopTrials[mid]){
+      return checkIfStop(trialNum, stopTrials, mid+1, imax);
+    }else if(trialNum<stopTrials[mid]){
+      return checkIfStop(trialNum, stopTrials, imin, mid-1);
+    }else{
+      return true;
+    }
+  }
+}
 
 ExperimentalProcedure * ep;
 Stage1 s1;
@@ -1322,6 +1343,7 @@ Stage3 s3;
 Stage4 s4;
 Test test;
 TestBox tb;
+int stopNumArray [100];  //create an array to store stop trial numbers. Stop number length should be no more than 100.
 
 void setup()
 {
@@ -1336,13 +1358,15 @@ void setup()
   lh=inputArguments[2].toInt();
   len=inputArguments[3].toInt();
   baseline=inputArguments[4].toInt();
-  stopNum=inputArguments[5].toInt();
+  
   rdelay=inputArguments[6].toInt();
   blockLength=inputArguments[7].toInt();
   blockNumber=inputArguments[8].toInt();
   
+  stopNum=inputArguments[5].toInt();
+  
   reward_volume=inputArguments[9].toInt();
-  reward.setParams(reward_volume); 
+  reward.setParams(reward_volume);
   
   blinkFreq=inputArguments[10].toInt();
   f[0].setParams(blinkFreq);
@@ -1353,7 +1377,6 @@ void setup()
   laserFreq=inputArguments[12].toInt();
   pulseDur=inputArguments[13].toInt();
   laserDur=inputArguments[14].toInt();
-  laser.setParams(laserFreq, pulseDur, laserDur);
   
   if(stage==1){
     s1.setParams(rdelay);
@@ -1365,10 +1388,15 @@ void setup()
     s3.setParams(lh, side);
     ep=&s3;
   }else if(stage==4){
-    s4.setParams(lh, side, len, baseline, stopNum,rdelay);
+    generateStopTrialNum(stopNumArray, baseline+1, blockLength*blockNumber+baseline+1, stopNum);
+    s4.setParams(lh, side, len, baseline, stopNum,rdelay, stopNumArray);
+    s4.printStopArray();
     ep=&s4;
   }else if(stage==5){
-    test.setParams(lh, side, len, baseline, stopNum,rdelay, blockLength, blockNumber, isLaser);
+    generateStopTrialNum(stopNumArray, baseline+1, blockLength*blockNumber+baseline+1, stopNum);
+    laser.setParams(laserFreq, pulseDur, laserDur);
+    test.setParams(lh, side, len, baseline, stopNum,rdelay, blockLength, blockNumber, stopNumArray, isLaser);
+    test.printStopArray();
     ep=&test;
   }else if(stage==6){
     tb.setParams(1000);
@@ -1394,12 +1422,6 @@ void loop()
       soft_restart();
     }
   }
-  /*
-  Serial.println(pb[0].getVoltage());
-  Serial.println(pb[1].getVoltage());
-  Serial.println(pb[2].getVoltage());
-  Serial.println();
-  delay(100);*/
 }
 
 
