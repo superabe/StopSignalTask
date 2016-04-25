@@ -143,8 +143,6 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.connection.write(paramsToSend)
         print(paramsToSend)
         print('params sent')
-        # if (params['stage']==4 or params['stage']==5) and int(params['baseline'])==0:
-        #     self.checkIfStop(1)
             
         
     def timeElapsedLabelUpdate(self):
@@ -163,8 +161,6 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         data = self.serialMonitor.getData().getData()
         trialNum = len(data['pokeInM'])
         stage = self.getParams()['stage']    
-        if stage>=4:
-            self.checkIfStop(trialNum+1)
         
         self.trialNumLabel.setText(str(trialNum))
         if stage>2:
@@ -184,21 +180,6 @@ class mainWindow(QMainWindow, Ui_MainWindow):
             self.stopPerfLabel.setText(str(cr['StopTrial']*100)+'%')
             if len(rt)>0:
                 self.histPlot.update_figure(rt)
-        
-        
-                
-    # def checkIfStop(self, trialNum):
-    #     params=self.getParams()
-    #     # signal whether next trial is stop trial
-    #     if trialNum > int(params['baseline']):
-    #         if params['stopTrialNum']&set([trialNum]):
-    #             self.connection.write('s')
-    #             params['stopTrialNum'].remove(trialNum)
-    #             return True
-    #         else:
-    #             self.connection.write('n')
-    #             return False
-        
 
     def sessionEnd(self):
         # restart arduino
@@ -454,16 +435,12 @@ class NewTraining(QDialog, Ui_Dialog):
             self.data['laserDur']='0'
         elif self.data['stage']==4:
             self.data['stopPercent']=self.gStopPercent.text()
-            self.data['blockLength']='0'
-            self.data['blockNumber']='0'
+            self.data['blockLength']=self.blockLengthEdit.text()
+            self.data['blockNumber']=self.blockNumberEdit.text()
             self.data['laserFreq']='0'
             self.data['pulseDur']='0'
             self.data['laserDur']='0'
-            # stopTrialNum = random.sample(list(range(int(self.data['baseline'])+1,int(self.data['sessionLength'])+1)),
-            #                              int(float(self.data['stopPercent'])*(int(self.data['sessionLength'])-int(self.data['baseline']))))
-            # self.data['stopTrialNum']=set(stopTrialNum)
-            # stopTrialNum.sort()
-            # print(stopTrialNum)
+
         elif self.data['stage']==5:
             if int(self.data['baseline'])<20:
                 print("Baseline better bigger than 20")
@@ -477,19 +454,6 @@ class NewTraining(QDialog, Ui_Dialog):
 
             if int(self.data['laserFreq'])>0 and int(self.data['pulseDur'])>0 and int(self.data['laserDur'])>0:
                 self.data['isLaser']='1'
-
-            # ###Stop trial Randomization###
-            # stopTrialNum=[]
-            # for i in range(int(self.data['blockNumber'])):
-            #     stopTrialNum+=random.sample(list(range(int(self.data['baseline'])+int(self.data['blockLength'])*i+1,
-            #                                        int(self.data['baseline'])+int(self.data['blockLength'])*(i+1)+1)), 
-            #                                  int(int(self.data['blockLength'])*float(self.data['stopPercent'])))
-            # self.data['stopTrialNum']=set(stopTrialNum)
-            # stopTrialNum.sort()
-            # print(stopTrialNum)
-        
-
-        # return 
         
         return self.data
 
