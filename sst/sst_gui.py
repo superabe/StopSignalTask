@@ -74,6 +74,14 @@ class mainWindow(QMainWindow, Ui_MainWindow):
     def getParams(self):
         return self.parameters
 		
+    def isConnectedToBoard(self):
+        # check if the computer is connectted to the arduino board
+        if self.connection.isNull():
+            QMessageBox.about(self, "Missed Connection", "Please turn on the arduino and restart the program!" )
+            return False
+        else:
+            return True
+
     def openNewTraining(self):
         if(self.newTraining.exec_()):
             self.setParams(self.newTraining.getParameters())
@@ -137,9 +145,8 @@ class mainWindow(QMainWindow, Ui_MainWindow):
             stopNum=int((int(params['sessionLength'])-int(params['baseline']))*float(params['stopPercent']))
         if stopNum>100:
             stopNum=100 # stop number should be less than 100.
-
-        while stopNum%params['blockNumber']!=0: # stop number should be equally distributed in each block.
-            params['blockNumber'] -= 1
+            while stopNum%int(params['blockNumber'])!=0:
+                params['blockNumber'] = srt(int(params['blockNumber'])-1)
 
         paramsToSend = str(params['stage'])+','+params['direction']+','+params['lh']+','\
                            +params['sessionLength']+','+params['baseline']+','+str(stopNum)+','\
@@ -147,8 +154,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
                            +params['reward']+','+params['blinkerFreq']+','+params['isLaser']+','\
                            +params['laserFreq']+','+params['pulseDur']+','+params['laserDur']+','+'\n'
         self.connection.write(paramsToSend)
-        return params
-            
+        self.setParams(params)
         
     def timeElapsedLabelUpdate(self):
         self.timeSinceStart+=1
@@ -223,6 +229,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
             if result == QMessageBox.Yes:
                 self.sessionEnd()
                 event.accept()
+                sys.exit(app.exec_())
     
     def saveData(self):
         '''
@@ -241,6 +248,11 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         f.write('General Message:\n')
         f.write('trialNum: ')   #### line 2
         f.write(str(len(data['pokeInM']))+' ')
+        for k, v in self.getParams().items():
+            if k in ['lh', 'reward', 'punishment', 'pulseDur', 'laserDur']:
+                v = int(int(v)/1.024)
+            v = str(v)
+            f.write(k+': '+v+ ' ')
         f.write(str(self.sendParams()))
         f.write('\nPokeInL\n')
         f.write(str(data['pokeInL']))   ####line 4
@@ -484,8 +496,9 @@ def main():
             
     app = QApplication(sys.argv)
     window = mainWindow(port, speed)
-    window.show()
-    sys.exit(app.exec_())
+    if window.isConnectedToBoard():
+        window.show()
+        sys.exit(app.exec_())
 
 if __name__=='__main__':
     

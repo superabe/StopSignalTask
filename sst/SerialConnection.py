@@ -19,7 +19,10 @@ class SerialConnection:
             self.connection = serial.Serial(self.port, self.baudrate)
         except serial.SerialException as e:
             print(e)
-        
+
+    def isNull(self):
+        return self.connection == None
+
     def opened(self):
         return not self.connection==None
         
