@@ -1292,7 +1292,7 @@ void generateStopTrialNum(int stopArray[], int startN, int endN, int N){
     
   for (int i=0; i<N;i++)
   {
-    int r = TrueRandom.random(i, endN-startN+1);    // select from a decreasing set
+    int r = TrueRandom.random(i, endN-startN);    // select from a decreasing set
     stopArray[i]=temp0[r];
     swap(temp0, r, i);     // switch the chosen one with the last of the selection set.
   }
@@ -1393,7 +1393,15 @@ void setup()
     s4.printStopArray();
     ep=&s4;
   }else if(stage==5){
-    generateStopTrialNum(stopNumArray, baseline+1, blockLength*blockNumber+baseline+1, stopNum);
+    // generated random trial numbers blockwise.
+    int stopNumInBlock = stopNum/blockNumber;
+    int tempArray[stopNumInBlock];
+    for(int i=0;i<blockNumber;i++){
+      generateStopTrialNum(tempArray, 1, blockLength+1, stopNumInBlock);
+      for(int j=0;j<stopNumInBlock;j++){
+        stopNumArray[i*stopNumInBlock+j]=tempArray[j]+baseline+blockLength*i;
+      }
+    }
     laser.setParams(laserFreq, pulseDur, laserDur);
     test.setParams(lh, side, len, baseline, stopNum,rdelay, blockLength, blockNumber, stopNumArray, isLaser);
     test.printStopArray();

@@ -135,14 +135,19 @@ class mainWindow(QMainWindow, Ui_MainWindow):
             stopNum=int((int(params['blockLength'])*float(params['stopPercent']))*int(params['blockNumber']))
         else:
             stopNum=int((int(params['sessionLength'])-int(params['baseline']))*float(params['stopPercent']))
+        if stopNum>100:
+            stopNum=100 # stop number should be less than 100.
+
+        while stopNum%params['blockNumber']!=0: # stop number should be equally distributed in each block.
+            params['blockNumber'] -= 1
+
         paramsToSend = str(params['stage'])+','+params['direction']+','+params['lh']+','\
                            +params['sessionLength']+','+params['baseline']+','+str(stopNum)+','\
                            +params['punishment']+','+params['blockLength']+','+params['blockNumber']+','\
                            +params['reward']+','+params['blinkerFreq']+','+params['isLaser']+','\
                            +params['laserFreq']+','+params['pulseDur']+','+params['laserDur']+','+'\n'
         self.connection.write(paramsToSend)
-        print(paramsToSend)
-        print('params sent')
+        return params
             
         
     def timeElapsedLabelUpdate(self):
@@ -201,20 +206,6 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         # save data to txt file
         self.saveData()
         self.resultSaved=True        
-       
-        
-        # calculate ssrt if stage==5
-        # data = self.serialMonitor.getData().getData()
-        # if int(self.getParams()['stage'])==5:
-        #     if self.getParams()['direction']=='l':
-        #         ssrt = calSSRT2(data['pokeOutR'],data['pokeInL'],data['SSDs'],data['trialType'],
-        #                         int(self.getParams()['baseline']),int(self.getParams()['blockNumber']),
-        #                         int(self.getParams()['blockLength']),float(self.getParams()['stopPercent']))
-        #     else:
-        #         ssrt = calSSRT2(data['pokeOutL'],data['pokeInR'],data['SSDs'],data['trialType'],
-        #                         int(self.getParams()['baseline']),int(self.getParams()['blockNumber']),
-        #                         int(self.getParams()['blockLength']),float(self.getParams()['stopPercent']))    
-        #     self.ssrtLabel.setText(str(ssrt)+' ms')
         
         # close serial monitor
         if self.serialMonitor is not None:
@@ -250,7 +241,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         f.write('General Message:\n')
         f.write('trialNum: ')   #### line 2
         f.write(str(len(data['pokeInM']))+' ')
-        f.write(str(self.getParams()))
+        f.write(str(self.sendParams()))
         f.write('\nPokeInL\n')
         f.write(str(data['pokeInL']))   ####line 4
         f.write('\nPokeOutL\n')
