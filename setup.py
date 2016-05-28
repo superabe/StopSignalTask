@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="sst",
-    version="0.0.1",
+    version="0.1.0",
     author="Alex Zhang",
     author_email="superabee@gmail.com",
     description="Stop Signal Task Control",
