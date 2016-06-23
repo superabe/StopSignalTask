@@ -996,8 +996,12 @@ class Test:public ExperimentalProcedure
     }
     // check limit hold
     if(lh){
-      if(t-lhStartTime>limitedHold)
+      if(t-lhStartTime>limitedHold){
         lh=false;
+        if(isLaserExp && laserBlue->isOn()){   //Optogenetics setting. If the limited hold is reached, laser will be off.
+          laserBlue->off();
+        }
+      }
     }
     // check to play stop signal
     if(stopDelayOn){
@@ -1142,6 +1146,9 @@ class Test:public ExperimentalProcedure
             delayOnTime=t;
             writeLHError(side);
           }
+          if(isLaserExp && laserBlue->isOn()){
+            laserBlue->off();
+          }
           break;
         case pokeOutL:
           if(!pbl->isInterrupted()){
@@ -1159,13 +1166,17 @@ class Test:public ExperimentalProcedure
             reward.on();
             if(isStopTrial && !stopSkipped){
               writeCorrectStop(side);
-              ssd+=50;
+              if((ssd+50)<=lh){
+                ssd+=50;
+              }else{
+                ssd=lh;
+              }
             }else if(isStopTrial && stopSkipped){
               stopSkipped=false;
             }
             writeData("IM",t);
             writeData("RS",t);
-          }else if(isStopTrial && (pbl->isInterrupted() || !lh)){
+          }else if(isStopTrial && pbl->isInterrupted()){
             if(!stopSkipped){
               ex_status=wandering;
               if(ssd>50)
@@ -1184,6 +1195,9 @@ class Test:public ExperimentalProcedure
             }else{
               ex_status=pokeInM;
             }
+          }
+          if(isLaserExp && laserBlue->isOn()){
+            laserBlue->off();
           }
           break;
         case pokeOutM:
