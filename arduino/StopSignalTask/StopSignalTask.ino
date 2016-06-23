@@ -1068,10 +1068,10 @@ class Test:public ExperimentalProcedure
               if(isLaserExp&&trialNum>baselineLength){
                 laserBlue->on();     //    start laser illumation@@@@@@@@@@@@@@@@@@
               }
+              lh=true;
+              lhStartTime=pokeOutRTime;
               if(!isStopTrial){
                 ex_status=pokeInL;
-                lh=true;
-                lhStartTime=pokeOutRTime;
               }else if(isStopTrial){
                 ex_status=waitToSignalStop;
                 stopDelayOnTime=pokeOutRTime;
@@ -1153,7 +1153,7 @@ class Test:public ExperimentalProcedure
           }
           break;
         case pokeInM:
-          if(pbm->isInterrupted()){       
+          if(pbm->isInterrupted() && (!isStopTrial || (isStopTrial && lh))){       
             ex_status=pokeOutM;
             fm->off();
             reward.on();
@@ -1165,7 +1165,7 @@ class Test:public ExperimentalProcedure
             }
             writeData("IM",t);
             writeData("RS",t);
-          }else if(isStopTrial && pbl->isInterrupted()){
+          }else if(isStopTrial && (pbl->isInterrupted() || !lh)){
             if(!stopSkipped){
               ex_status=wandering;
               if(ssd>50)
