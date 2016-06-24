@@ -998,9 +998,13 @@ class Test:public ExperimentalProcedure
     if(lh){
       if(t-lhStartTime>limitedHold){
         lh=false;
-        if(isLaserExp && laserBlue->isOn()){   //Optogenetics setting. If the limited hold is reached, laser will be off.
-          laserBlue->off();
-        }
+      }
+    }
+
+    // update laser state 
+    if(isLaserExp&&trialNum>baselineLength){
+      if(laserBlue->isOn()){
+        laserBlue->updateState(t);
       }
     }
     // check to play stop signal
@@ -1021,11 +1025,7 @@ class Test:public ExperimentalProcedure
       fm->updateState(t);
       fr->updateState(t);
       fl->updateState(t);
-      if(isLaserExp&&trialNum>baselineLength){
-        if(laserBlue->isOn()){
-          laserBlue->updateState(t);
-        }
-      }
+      
       switch(ex_status){
         case wandering:
           ex_status=pokeInR;
@@ -1132,6 +1132,10 @@ class Test:public ExperimentalProcedure
               writeData("IL",t);  //output timestamp
             else
               writeData("IR",t);
+            
+            if(isLaserExp && laserBlue->isOn()){        //laser off
+              laserBlue->off();
+            }
           }else if(lh && pbm->isInterrupted()){
             ex_status=wandering;
             fl->off();
@@ -1139,15 +1143,20 @@ class Test:public ExperimentalProcedure
             delayOnTime=t;
             writeData("IM",t);
             writeGoError(side);
+            
+            if(isLaserExp && laserBlue->isOn()){      //laser off
+              laserBlue->off();
+            }
           }else if(!lh){
             ex_status=wandering;
             fl->off();
             delayOn=true;
             delayOnTime=t;
             writeLHError(side);
-          }
-          if(isLaserExp && laserBlue->isOn()){
-            laserBlue->off();
+            
+            if(isLaserExp && laserBlue->isOn()){       //laser off
+              laserBlue->off();
+            }
           }
           break;
         case pokeOutL:
@@ -1176,7 +1185,11 @@ class Test:public ExperimentalProcedure
             }
             writeData("IM",t);
             writeData("RS",t);
-          }else if(isStopTrial && pbl->isInterrupted()){
+
+            if(isStopTrial && isLaserExp && laserBlue->isOn()){       //laser off
+              laserBlue->off();
+            }
+          }else if(isStopTrial && (pbl->isInterrupted() || !lh)){
             if(!stopSkipped){
               ex_status=wandering;
               if(ssd>50)
@@ -1192,12 +1205,13 @@ class Test:public ExperimentalProcedure
               else
                 writeData("IR",t);
               writeStopError(side);
+
+              if(isLaserExp && laserBlue->isOn()){       //laser off
+              laserBlue->off();
+            }
             }else{
               ex_status=pokeInM;
             }
-          }
-          if(isLaserExp && laserBlue->isOn()){
-            laserBlue->off();
           }
           break;
         case pokeOutM:
