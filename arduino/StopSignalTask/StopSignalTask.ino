@@ -1175,7 +1175,7 @@ class Test:public ExperimentalProcedure
             reward.on();
             if(isStopTrial && !stopSkipped){
               writeCorrectStop(side);
-              if((ssd+50)<=lh){
+              if((ssd+50)<=limitedHold){
                 ssd+=50;
               }else{
                 ssd=lh;
