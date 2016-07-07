@@ -1170,7 +1170,8 @@ class Test:public ExperimentalProcedure
           break;
         case pokeInM:
           if(pbm->isInterrupted() && (!isStopTrial || (isStopTrial && lh))){       
-            ex_status=pokeOutM;
+//            ex_status=pokeOutM;
+            ex_status=wandering;
             fm->off();
             reward.on();
             if(isStopTrial && !stopSkipped){
@@ -1214,12 +1215,12 @@ class Test:public ExperimentalProcedure
             }
           }
           break;
-        case pokeOutM:
-          if(!pbm->isInterrupted()){
-            ex_status=wandering;
-            writeData("OM",t);
-          }
-          break;
+//        case pokeOutM:
+//          if(!pbm->isInterrupted()){
+//            ex_status=wandering;
+//            writeData("OM",t);
+//          }
+//          break;
       }
     }
   }
