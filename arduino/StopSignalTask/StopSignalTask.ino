@@ -1201,6 +1201,9 @@ class Test:public ExperimentalProcedure
               else
                 ssd=0;
               fm->off();
+              if(fl->isOn()){
+                fl->off();
+              }
               delayOn=true;
               delayOnTime=t-requiredDelay+1024;  //stop error delay is 1 second
               writeData("ssd",-50);
