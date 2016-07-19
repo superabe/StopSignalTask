@@ -40,18 +40,18 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.resultSaved = True
         self.port = port
         self.baudrate=baudrate
-        self.connection = SerialConnection(self.port, self.baudrate)        
+        self.connection = SerialConnection(self.port, self.baudrate)
         self.serialMonitor=None
         self.testReward_button.setEnabled(False)
         self.testStopSignal_button.setEnabled(False)
         # new training setting window
         self.newTraining=NewTraining()
-        
+
         # timers
         self.timerForTimeDisplay=QTimer()
         self.timerForRuningDisplay=QTimer()
 
-        
+
         # connect signals to slots
 
         self.actionNew_Training.triggered.connect(self.openNewTraining)
@@ -68,12 +68,12 @@ class mainWindow(QMainWindow, Ui_MainWindow):
 
         # initialize display
         self.timeElapsedLabel.setText('0 m 0 s')
-    
+
     def setParams(self, params):
         self.parameters=params
     def getParams(self):
         return self.parameters
-		
+
     def isConnectedToBoard(self):
         # check if the computer is connectted to the arduino board
         if self.connection.isNull():
@@ -87,7 +87,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
             self.setParams(self.newTraining.getParameters())
             self.configured=True
             self.start_button.setEnabled(True)
-                
+
 
     def sessionStart(self):
         self.isRunning=True
@@ -105,17 +105,17 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.timerForTimeDisplay.start(1000)
         self.timerForRuningDisplay.start(500)
 
-        # start serial monitor        
+        # start serial monitor
         if self.serialMonitor is None:
             self.serialMonitor = SerialMonitor(Data(), self.connection)
         self.serialMonitor.state.connect(self.trialEndUpdate)
         self.serialMonitor.start()
-        
+
         # send session parameters to arduino
         self.sendParams()
-        
+
         # initialize mainwindow display
-        self.trialNumLabel.setText('0') 
+        self.trialNumLabel.setText('0')
         self.timeElapsedLabel.setText('0'+' m '+'0'+' s')
         self.goPerfLabel.setText('0%')
         self.stopPerfLabel.setText('0%')
@@ -135,7 +135,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
                 self.testReward_button.setEnabled(True)
                 self.testStopSignal_button.setEnabled(True)
                 self.testLaser_button.setEnabled(True)
-        
+
     def sendParams(self):
         # send parameters to arduino control program through serial communication
         params=self.getParams()
@@ -155,7 +155,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
                            +params['laserFreq']+','+params['pulseDur']+','+params['laserDur']+','+'\n'
         self.connection.write(paramsToSend)
         self.setParams(params)
-        
+
     def timeElapsedLabelUpdate(self):
         self.timeSinceStart+=1
         mins = int(self.timeSinceStart/60)
@@ -167,12 +167,12 @@ class mainWindow(QMainWindow, Ui_MainWindow):
             self.runingLabel.setVisible(False)
         else:
             self.runingLabel.setVisible(True)
- 
+
     def trialEndUpdate(self):
         data = self.serialMonitor.getData().getData()
         trialNum = len(data['pokeInM'])
-        stage = self.getParams()['stage']    
-        
+        stage = self.getParams()['stage']
+
         self.trialNumLabel.setText(str(trialNum))
         if stage>2:
             if self.getParams()['direction']=='l':
@@ -181,13 +181,13 @@ class mainWindow(QMainWindow, Ui_MainWindow):
                 rt = calRT(data['pokeOutL'],data['pokeInR'])
             # cal initial ssd and send to control program
             if trialNum==int(self.getParams()['baseline']) and stage==5:
-                if median(rt)>200:
-                    self.connection.write(str(median(rt)-200)+',')
-                else:# If median of rt was less than 200, then stop delay will be set to zero
+                if median(rt)>0:
+                    self.connection.write(str(median(rt))+',')
+                else:# If median of rt was less than 0, then stop delay will be set to zero
                     self.connection.write('0,')
-            
+
             cr = calCR(data['trialType'],data['isRewarded'])
-            self.goPerfLabel.setText(str(float(cr['GoTrial'])*100)+'%')    
+            self.goPerfLabel.setText(str(float(cr['GoTrial'])*100)+'%')
             self.stopPerfLabel.setText(str(float(cr['StopTrial'])*100)+'%')
             if len(rt)>0:
                 self.histPlot.update_figure(rt)
@@ -195,10 +195,10 @@ class mainWindow(QMainWindow, Ui_MainWindow):
     def sessionEnd(self):
         # restart arduino
         self.connection.write('r')
-        
+
         # reset GUI
         self.isRunning=False
-        self.end_button.setEnabled(False)        
+        self.end_button.setEnabled(False)
         self.actionNew_Training.setEnabled(True)
         self.testReward_button.setEnabled(False)
         self.testStopSignal_button.setEnabled(False)
@@ -208,21 +208,21 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.runingLabel.setVisible(True)
         self.runingLabel.setPixmap(QPixmap('off.png'))#.scaled(self.runingLabel.size()))
         self.timeSinceStart=0
-        
+
         # save data to txt file
         self.saveData()
-        self.resultSaved=True        
-        
+        self.resultSaved=True
+
         # close serial monitor
         if self.serialMonitor is not None:
             self.serialMonitor.stop()
-            self.serialMonitor=None        
-        
+            self.serialMonitor=None
+
         print('Session End')
-   
+
     def closeEvent(self, event):
         if not self.resultSaved:
-            result = QMessageBox.question(self, "Exit", 
+            result = QMessageBox.question(self, "Exit",
                                           "Want to exit ? Session In Process!!!",
                                           QMessageBox.Yes|QMessageBox.No)
             event.ignore()
@@ -230,14 +230,14 @@ class mainWindow(QMainWindow, Ui_MainWindow):
                 self.sessionEnd()
                 event.accept()
                 sys.exit(app.exec_())
-    
+
     def saveData(self):
         '''
         Save the result to file
         '''
         ####Create a TXT file to store the result data
         ####Check whether there is a file with the same name as we created first.
-    
+
         now = datetime.datetime.now()
         createdTime = now.strftime("%Y-%m-%d %H-%M")
         fileName = 'SST Report ' + createdTime + '.txt'
@@ -273,7 +273,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         f.write('\nTrialType\n')
         f.write(str(data['trialType']))
         f.write('\nIsRewarded\n')
-        f.write(str(data['isRewarded']))        
+        f.write(str(data['isRewarded']))
         f.write('\nSSDs\n')
         f.write(str(data['SSDs']))
         f.write('\nTrials Skipped\n')
@@ -286,7 +286,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         f.write(str(data['laserOn']))
         f.write('\n')
         f.close()
-    
+
     def about(self):
         QMessageBox.about(self, "About",
 """Stop Signal Task Control Program
@@ -294,11 +294,11 @@ class mainWindow(QMainWindow, Ui_MainWindow):
 This program is a simple system for neuroscience research of behavior inhibition.
 
 It may be used and modified with no restriction."""
-)    
-    
+)
+
     def testRewardStart(self):
         self.connection.write('t')
-    
+
     def testRewardEnd(self):
         self.connection.write('s')
 
@@ -318,48 +318,48 @@ class NewTraining(QDialog, Ui_Dialog):
         Ui_Dialog.__init__(self)
         self.setupUi(self)
 
-        #set constraints on QLineedits   
+        #set constraints on QLineedits
         self.gbaseline.setValidator(QIntValidator(1,500,self))
         self.gbaseline.textChanged.connect(self.check_lineedit_state)
         self.gbaseline.textChanged.emit(self.gbaseline.text())
-        
+
         self.gSessionLength.setValidator(QIntValidator(1,500,self))
         self.gSessionLength.textChanged.connect(self.check_lineedit_state)
         self.gSessionLength.textChanged.emit(self.gSessionLength.text())
-        
+
         self.blockLengthEdit.setValidator(QIntValidator(1,500,self))
         self.blockLengthEdit.textChanged.connect(self.check_lineedit_state)
         self.blockLengthEdit.textChanged.emit(self.blockLengthEdit.text())
-        
+
         self.blockNumberEdit.setValidator(QIntValidator(1,10,self))
         self.blockNumberEdit.textChanged.connect(self.check_lineedit_state)
         self.blockNumberEdit.textChanged.emit(self.blockNumberEdit.text())
-        
+
         self.gLH.setValidator(QIntValidator(100,30000,self))
         self.gLH.textChanged.connect(self.check_lineedit_state)
         self.gLH.textChanged.emit(self.gLH.text())
-        
+
         self.gPunishment.setValidator(QIntValidator(1000,10000,self))
         self.gPunishment.textChanged.connect(self.check_lineedit_state)
         self.gPunishment.textChanged.emit(self.gPunishment.text())
-        
+
         self.gReward.setValidator(QIntValidator(10,1000,self))
         self.gReward.textChanged.connect(self.check_lineedit_state)
-        self.gReward.textChanged.emit(self.gReward.text())        
-        
+        self.gReward.textChanged.emit(self.gReward.text())
+
         self.blinkerFreq.setValidator(QIntValidator(5,100,self))
         self.blinkerFreq.textChanged.connect(self.check_lineedit_state)
-        self.blinkerFreq.textChanged.emit(self.blinkerFreq.text())            
-        
+        self.blinkerFreq.textChanged.emit(self.blinkerFreq.text())
+
         self.stageComboBox.activated.connect(self.stageSelection)
 
         self.directionComboBox.activated.connect(self.directionSelection)
-            
+
         self.data=dict()
         self.data['stage']=1
         self.data['direction']='l'
-        
-    
+
+
     def check_lineedit_state(self, *args, **kwargs):
         sender = self.sender()
         validator = sender.validator()
@@ -371,7 +371,7 @@ class NewTraining(QDialog, Ui_Dialog):
         else:
             color = '#f6989d' # red
         sender.setStyleSheet('QLineEdit { background-color: %s }' % color)
-   
+
     def stageSelection(self, stage):
         self.data['stage']=stage+1
         if stage <2 or stage==5:
@@ -412,16 +412,16 @@ class NewTraining(QDialog, Ui_Dialog):
             self.data['direction'] = 'l'
         else:
             self.data['direction'] = 'r'
-        
-    
+
+
     def getParameters(self):
-  
+
         # configurations
         # if(self.direction_left.isChecked()):
         #     self.data['direction']='l'
         # else:
         #     self.data['direction']='r'
-        
+
         self.data['baseline']=self.gbaseline.text()
         self.data['sessionLength']=self.gSessionLength.text()
         self.data['lh']=str(int(int(self.gLH.text())*1.024))
@@ -457,7 +457,7 @@ class NewTraining(QDialog, Ui_Dialog):
 
             if int(self.data['laserFreq'])>0 and int(self.data['pulseDur'])>0 and int(self.data['laserDur'])>0:
                 self.data['isLaser']='1'
-        
+
         return self.data
 
 class MyHistCanvas(FigureCanvas):
@@ -480,7 +480,7 @@ class MyHistCanvas(FigureCanvas):
     def update_figure(self, x):
         if(len(x)>1):
             x=x/1000
-            self.axes.hist(x, color='c', alpha=0.5, bins=20) 
+            self.axes.hist(x, color='c', alpha=0.5, bins=20)
             self.axes.set_xlabel('Time (s)')
             self.axes.set_ylabel('count')
             self.draw()
@@ -488,12 +488,12 @@ class MyHistCanvas(FigureCanvas):
         x = np.random.normal(size=10)
         self.axes.plot(list(range(10)),x)
         self.draw()
-    
-# main entry point of the script    
+
+# main entry point of the script
 def main():
     speed = 115200   # communication speed
     port = 'COM3'   # port used for communication
-            
+
     app = QApplication(sys.argv)
     window = mainWindow(port, speed)
     if window.isConnectedToBoard():
@@ -501,5 +501,5 @@ def main():
         sys.exit(app.exec_())
 
 if __name__=='__main__':
-    
+
     main()
