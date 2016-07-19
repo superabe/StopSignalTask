@@ -187,8 +187,8 @@ class mainWindow(QMainWindow, Ui_MainWindow):
                     self.connection.write('0,')
             
             cr = calCR(data['trialType'],data['isRewarded'])
-            self.goPerfLabel.setText(str(cr['GoTrial']*100)+'%')    
-            self.stopPerfLabel.setText(str(cr['StopTrial']*100)+'%')
+            self.goPerfLabel.setText(str(float(cr['GoTrial'])*100)+'%')    
+            self.stopPerfLabel.setText(str(float(cr['StopTrial'])*100)+'%')
             if len(rt)>0:
                 self.histPlot.update_figure(rt)
 

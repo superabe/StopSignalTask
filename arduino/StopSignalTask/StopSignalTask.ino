@@ -1095,8 +1095,8 @@ class Test:public ExperimentalProcedure
         case waitToSignalStop:
           if(!stopDelayOn){
             ex_status=pokeInM;
-            fl->off();
-            fm->on();
+            //fl->off();
+            //fm->on();
           }else if(stopDelayOn && pbl->isInterrupted()){
             ex_status=pokeOutL;
             stopDelayOn=false;
@@ -1173,6 +1173,9 @@ class Test:public ExperimentalProcedure
 //            ex_status=pokeOutM;
             ex_status=wandering;
             fm->off();
+            if(fl->isOn()){
+              fl->off();
+            }
             reward.on();
             if(isStopTrial && !stopSkipped){
               writeCorrectStop(side);

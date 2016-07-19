@@ -27,8 +27,8 @@ def calCR(trialType, isRewarded):
     -------
     correctRate: Dictionary
         return a Dictionary contains correct rates of go trials and stop trials.
-    
-    
+
+
     '''
     correct1=0
     wrong1=0
@@ -48,20 +48,20 @@ def calCR(trialType, isRewarded):
             else:
                 correct2+=1
         if (correct2+wrong2)>0 and (correct1+wrong1)>0:
-            return {'GoTrial':round(float(correct1)/(correct1+wrong1),2), 'StopTrial':round(float(correct2)/(correct2+wrong2),2)}
+            return {'GoTrial':format(float(correct1)/(correct1+wrong1),'.2f'), 'StopTrial':format(float(correct2)/(correct2+wrong2),'.2f')}
         elif (correct1+wrong1)>0 and (correct2+wrong2)==0:
-            return {'GoTrial':round(float(correct1)/(correct1+wrong1),2), 'StopTrial':0}
+            return {'GoTrial':format(float(correct1)/(correct1+wrong1),'.2f'), 'StopTrial':'0'}
         elif (correct2+wrong2)>0 and (correct1+wrong1)==0:
-            return {'GoTrial':0, 'StopTrial':round(float(correct2)/(correct2+wrong2),2)}
+            return {'GoTrial':'0', 'StopTrial':format(float(correct2)/(correct2+wrong2),'.2f')}
         else:
-            return {'GoTrial':0, 'StopTrial':0}
-            
+            return {'GoTrial':'0', 'StopTrial':'0'}
+
     elif len(trialType)==0: #In training stage3, the length of trialType equals zero.
-        return {'GoTrial':round(float(sum(isRewarded))/len(isRewarded),2),'StopTrial':0}
+        return {'GoTrial':format(float(sum(isRewarded))/len(isRewarded),'.2f'),'StopTrial':'0'}
     else:
         print('Output data length is unequal! Cannot calculate the correct rate.')
-        return {'GoTrial':0, 'StopTrial':0}
-        
+        return {'GoTrial':'0', 'StopTrial':'0'}
+
 
 
 def calRT(list1,list2):
@@ -69,7 +69,7 @@ def calRT(list1,list2):
     Caluculate the Go Reaction Time in Go Trial (From L to R or the other way around)
     Usually, this function is called automatically after every training session.
     The result will be store in the ouput file.
-    
+
     Parameters
     ----------
     list1: Timestamps when rat leaves left or right
@@ -80,7 +80,7 @@ def calRT(list1,list2):
     -------
     calRT : numpy.ndarray
         Return an array of 1-D ndarray contains all the Go reaction time
-    
+
     '''
     #Store two lists temporarily
     temp1=np.array(list1)
@@ -108,7 +108,7 @@ def calRT(list1,list2):
         else:
             return []
 
-    
+
 def plotRTD(rt,baseline=20,col='green',num_bins=30):
     '''
     Plot the Go Reaction Time Distribution
@@ -147,7 +147,7 @@ def calSSRT(rt,SSD,baseline=20,isTracked=True):
     -------
     SSRT: numpy.ndarray
         return Stop Signal Reaction Time
-    
+
     '''
     rt=rt[(baseline+1):]
     # Fisrt, check skewness of rt distribution
@@ -163,7 +163,7 @@ def calSSRT(rt,SSD,baseline=20,isTracked=True):
         ssrt = np.percentile(rt,50) - np.mean(SSD)/1000.0
     print('SSRT: ')
     return ssrt
-        
+
 def calSSRT2(list1,list2,SSD,trialType,baseline=20,block_num=5,block_length=60,stop_in_block=10.0/60,isTracked=True):
     '''
 
@@ -182,7 +182,7 @@ def calSSRT2(list1,list2,SSD,trialType,baseline=20,block_num=5,block_length=60,s
     -------
     SSRT: numpy.ndarray
         return Stop Signal Reaction Time
-    
+
     '''
     blocks=[]
     ssds=[]
@@ -222,6 +222,3 @@ def median(list1):
             return (list1[k-1]+list1[k])/2.0
         else:
             return list1[k]
-
-
-
