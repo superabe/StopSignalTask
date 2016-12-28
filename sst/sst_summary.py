@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 from scipy.stats import skewtest
-from preprocess import loadData, calSSRT2
+from .preprocess import loadData, calSSRT2
 #from pandas import DataFrame
 
 

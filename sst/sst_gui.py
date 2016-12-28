@@ -6,6 +6,7 @@ import os
 import time
 import random
 import datetime
+import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QSizePolicy,QMessageBox
 from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QPixmap,QValidator, QIntValidator
@@ -22,6 +23,7 @@ from .sst_newTraining import Ui_Dialog
 from .SerialConnection import SerialConnection
 from .SerialMonitor import SerialMonitor
 from .Data import Data
+from .sst_server import ThreadedTCPServer, MyTCPHandler
 
 
 class mainWindow(QMainWindow, Ui_MainWindow):
@@ -50,7 +52,6 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         # timers
         self.timerForTimeDisplay=QTimer()
         self.timerForRuningDisplay=QTimer()
-
 
         # connect signals to slots
 
@@ -170,10 +171,10 @@ class mainWindow(QMainWindow, Ui_MainWindow):
 
     def trialEndUpdate(self):
         data = self.serialMonitor.getData().getData()
-        trialNum = len(data['pokeInM'])
         stage = self.getParams()['stage']
 
-        self.trialNumLabel.setText(str(trialNum))
+        self.trialNum += 1
+        self.trialNumLabel.setText(str(self.trialNum))
         if stage>2:
             if self.getParams()['direction']=='l':
                 rt = calRT(data['pokeOutR'],data['pokeInL'])
@@ -213,9 +214,9 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         filename = self.saveData()
         self.resultSaved=True
 
-        if self.getParams()['stage']==5:
-            ssrt = str(self.getSSRT(filename))
-            self.ssrtLabel.setText(ssrt)
+        #if self.getParams()['stage']==5:
+        #    ssrt = str(self.getSSRT(filename))
+        #    self.ssrtLabel.setText(ssrt)
 
         # close serial monitor
         if self.serialMonitor is not None:
@@ -322,6 +323,8 @@ It may be used and modified with no restriction."""
     def testLaserOff(self):
         self.connection.write('x')
 
+    def getCurrentTrialNum(self):
+        return self.trialNum
 
 class NewTraining(QDialog, Ui_Dialog):
     def __init__(self):
@@ -507,6 +510,14 @@ def main():
 
     app = QApplication(sys.argv)
     window = mainWindow(port, speed)
+
+    # host and port for server
+    HOST, PORT = "0.0.0.0", 9999
+    # server
+    server = ThreadedTCPServer((HOST, PORT),MyTCPHandler)
+    server.trialNum = window.getCurrentTrialNum()
+    threading.Thread(target=self.server.serve_forever).start()
+
     if window.isConnectedToBoard():
         window.show()
         sys.exit(app.exec_())

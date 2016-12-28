@@ -963,6 +963,7 @@ class Test:public ExperimentalProcedure
       pbr = &pb[0];
     }
   }
+  
   void printStopArray(){
     for(int i=0;i<stopTrialsNum;i++){
       Serial.print(i);
@@ -970,7 +971,46 @@ class Test:public ExperimentalProcedure
       Serial.println(stopArray[i]);
     }
   }
+
+  // stop Array change dynamically
+
+  void stopArrayUpdate(bool isSkipped){
     
+    // get array length
+    int arrayLength = stopTrialsNum;
+  
+    // remove the first element of stopArray
+    if(isSkipped){
+      int k = 0;
+      while(!(stopArray[k+1]>stopArray[k]+1)){
+        k++;
+        if(k+1>arrayLength-1){
+          k = -1;
+          break;
+        }
+      }
+      for(int i=0;i<arrayLength-1;i++){
+        if(i==k){
+          stopArray[i]=stopArray[i]+1;
+          break;
+        }else{
+          if(stopArray[i+1]==stopArray[i])
+            break;
+          else
+            stopArray[i]=stopArray[i+1];
+        }
+      }
+    }else{
+      for(int i=0;i<arrayLength-1;i++){
+        if(stopArray[i+1]==stopArray[i])
+            break;
+        else
+          stopArray[i]=stopArray[i+1];
+      }
+    }
+  }
+
+  
   void updating(long t)
   {
     if(reward.isRewarding())
@@ -1113,6 +1153,7 @@ class Test:public ExperimentalProcedure
               writeData("IL",t);  //output timestamp
             else
               writeData("IR",t);
+            stopArrayUpdate(stopSkipped);  //update stop array
           }else if(stopDelayOn && pbm->isInterrupted()){
             ex_status=wandering;
             stopDelayOn=false;
@@ -1184,6 +1225,7 @@ class Test:public ExperimentalProcedure
               }else{
                 ssd=lh;
               }
+              stopArrayUpdate(stopSkipped); // update stop array
             }else if(isStopTrial && stopSkipped){
               stopSkipped=false;
             }
@@ -1215,7 +1257,8 @@ class Test:public ExperimentalProcedure
 
               if(isLaserExp && laserBlue->isOn()){       //laser off
               laserBlue->off();
-            }
+              }
+              stopArrayUpdate(stopSkipped);  // update stop array
             }else{
               ex_status=pokeInM;
             }
@@ -1311,6 +1354,7 @@ void getParams() {
     }
   }
 }
+
 
 //Random Generator: Generate a length of N random numbers sorted sequence from a given range.
 
