@@ -24,6 +24,7 @@ from .SerialConnection import SerialConnection
 from .SerialMonitor import SerialMonitor
 from .Data import Data
 from .sst_server import ThreadedTCPServer, MyTCPHandler
+from .sst_video import displayVideo
 
 
 class mainWindow(QMainWindow, Ui_MainWindow):
@@ -518,6 +519,7 @@ def main():
     server = ThreadedTCPServer((HOST, PORT),MyTCPHandler)
     server.getTrialNum = window.getCurrentTrialNum
     threading.Thread(target=server.serve_forever).start()
+    threading.Thread(target=displayVideo).start()
 
     if window.isConnectedToBoard():
         window.show()
