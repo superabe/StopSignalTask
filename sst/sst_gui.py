@@ -328,6 +328,9 @@ It may be used and modified with no restriction."""
     def getCurrentTrialNum(self):
         return self.trialNum
 
+    def isCurrentSessionRunning(self):
+        return self.isRunning
+
 class NewTraining(QDialog, Ui_Dialog):
     def __init__(self):
         QDialog.__init__(self)
@@ -518,6 +521,7 @@ def main():
     # server
     server = ThreadedTCPServer((HOST, PORT),MyTCPHandler)
     server.getTrialNum = window.getCurrentTrialNum
+    server.isSessionRunning = window.isCurrentSessionRunning
     threading.Thread(target=server.serve_forever).start()
     threading.Thread(target=displayVideo).start()
 

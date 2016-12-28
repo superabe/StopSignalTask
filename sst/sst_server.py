@@ -4,6 +4,7 @@ import cv2
 import imutils
 import pickle
 import struct
+import time
 
 class MyTCPHandler(socketserver.BaseRequestHandler):
     """
@@ -19,14 +20,18 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         print('Connection Established')
         socketserver.BaseRequestHandler.__init__(self, request, client_address, server)
 
-    def captureVideo(self, trialNum = 0):
+    def captureVideo(self, trialNum = 0, current_time = 0):
         # read frame from the camera
         if(self.myCamera.isOpened()):
             ret, frame = self.myCamera.read()
 
             # resize the frame to 480 width while keeping the ratio
             frame = imutils.resize(frame, width=480)
-            cv2.putText(frame, 'Trial: '+str(trialNum), (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA )
+            # print trial number on the screen
+            cv2.putText(frame, 'Trial Finished: '+str(trialNum), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA )
+            # transform seconds to minutes and print it on the screen
+            current_time = current_time // 60
+            cv2.putText(frame, 'TimeElapsed: '+str(current_time)+' min', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA )
             # image compression
             r, frame = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 30])
             return((r, frame))
@@ -46,17 +51,22 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         # request handler
-        #counter = 0
+        current_time = 0
+        start_time = 0
         while True:
             # get the data to send
-            #counter += 1
             trialNum = self.server.getTrialNum()
-            r, frame = self.captureVideo(trialNum)
+            isRunning = self.server.isSessionRunning()
+            if isRunning and start_time == 0:
+                start_time = time.clock()
+                current_time = start_time
+            elif isRunning and start_time >0:
+                current_time = time.clock()-start_time
+            elif not isRunning:
+                current_time = 0
+                start_time = 0
+            r, frame = self.captureVideo(trialNum, current_time)
             data_to_send = self.pack_data(frame)
-            #if counter/100>1:
-            #    counter = 0
-            #    trialNum = self.server.getTrialNum()
-            #    data_to_send += self.pack_data(trialNum)
             self.request.sendall(data_to_send)
 
 
