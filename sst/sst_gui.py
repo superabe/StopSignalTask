@@ -181,7 +181,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
             else:
                 rt = calRT(data['pokeOutL'],data['pokeInR'])
             # cal initial ssd and send to control program
-            if trialNum==int(self.getParams()['baseline']) and stage==5:
+            if self.trialNum==int(self.getParams()['baseline']) and stage==5:
                 if median(rt)>0:
                     self.connection.write(str(median(rt))+',')
                 else:# If median of rt was less than 0, then stop delay will be set to zero
@@ -209,6 +209,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.runingLabel.setVisible(True)
         self.runingLabel.setPixmap(QPixmap('off.png'))#.scaled(self.runingLabel.size()))
         self.timeSinceStart=0
+        self.trialNum = 0
 
         # save data to txt file
         filename = self.saveData()
@@ -515,8 +516,8 @@ def main():
     HOST, PORT = "0.0.0.0", 9999
     # server
     server = ThreadedTCPServer((HOST, PORT),MyTCPHandler)
-    server.trialNum = window.getCurrentTrialNum()
-    threading.Thread(target=self.server.serve_forever).start()
+    server.getTrialNum = window.getCurrentTrialNum
+    threading.Thread(target=server.serve_forever).start()
 
     if window.isConnectedToBoard():
         window.show()

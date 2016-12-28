@@ -16,15 +16,17 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     def __init__(self, request, client_address, server, C_TYPE_FORMAT = 'I'):
         self.myCamera = cv2.VideoCapture(0)
         self.C_TYPE_FORMAT = C_TYPE_FORMAT
+        print('Connection Established')
         socketserver.BaseRequestHandler.__init__(self, request, client_address, server)
 
-    def captureVideo(self):
+    def captureVideo(self, trialNum = 0):
         # read frame from the camera
         if(self.myCamera.isOpened()):
             ret, frame = self.myCamera.read()
 
             # resize the frame to 480 width while keeping the ratio
-             frame = imutils.resize(frame, width=480)
+            frame = imutils.resize(frame, width=480)
+            cv2.putText(frame, 'Trial: '+str(trialNum), (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA )
             # image compression
             r, frame = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 30])
             return((r, frame))
@@ -44,17 +46,19 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         # request handler
-        counter = 0
+        #counter = 0
         while True:
             # get the data to send
-            counter += 1
-            r, frame = self.captureVideo()
+            #counter += 1
+            trialNum = self.server.getTrialNum()
+            r, frame = self.captureVideo(trialNum)
             data_to_send = self.pack_data(frame)
-            if counter/100>1:
-                counter = 0
-                data_to_send += self.pack_data(self.server.trialNum)
+            #if counter/100>1:
+            #    counter = 0
+            #    trialNum = self.server.getTrialNum()
+            #    data_to_send += self.pack_data(trialNum)
             self.request.sendall(data_to_send)
-            print(counter)
+
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
