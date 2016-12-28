@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <stdlib.h>
 
+
 #define wandering 0xF1
 #define pokeInM 0xF2
 #define pokeOutM 0xF3
@@ -430,7 +431,7 @@ class Stage1:public ExperimentalProcedure
         ex_status = pokeInM;
         f[1].on();
         trialNum+=1;
-        writeData("trialNum",trialNum);
+        writeData("TN",trialNum);
         break;
       case pokeInM:
         if (pb[1].isInterrupted())
@@ -494,7 +495,7 @@ class Stage2:public ExperimentalProcedure
         ex_status=pokeInL;
         sf->on();
         trialNum+=1;
-        writeData("trialNum",trialNum);
+        writeData("TN",trialNum);
         break;
       case pokeInL:
         if(spb->isInterrupted()){
@@ -591,7 +592,7 @@ class Stage3:public ExperimentalProcedure
           fl->off();
         fr->on();
         trialNum+=1;
-        writeData("trialNum",trialNum);
+        writeData("TN",trialNum);
         break;
       case pokeInR:
         if(pbr->isInterrupted()){
@@ -760,7 +761,7 @@ class Stage4:public ExperimentalProcedure
             fl->off();
           fr->on();
           trialNum++;
-          writeData("trialNum",trialNum);
+          writeData("TN",trialNum);
           if(trialNum>baselineLength){
             stopChecked=false;
             isStopTrial = checkIfStop(trialNum, stopArray, 0, stopTrialsNum-1);
@@ -1035,16 +1036,16 @@ class Test:public ExperimentalProcedure
             fl->off();
           fr->on();
           trialNum++;
-          writeData("trialNum",trialNum);
+          writeData("TN",trialNum);
           // check if stop
           if(trialNum>baselineLength){
             stopChecked=false;
             isStopTrial = checkIfStop(trialNum, stopArray, 0, stopTrialsNum-1);
             if(isStopTrial){
-              writeData("TT",2);
-            }else{
-              writeData("TT",1);
-            }
+                writeData("TT",2);
+              }else{
+                writeData("TT",1);
+              }
           }else{
             writeData("TT",1);
           }
@@ -1170,8 +1171,7 @@ class Test:public ExperimentalProcedure
           break;
         case pokeInM:
           if(pbm->isInterrupted() && (!isStopTrial || (isStopTrial && lh))){       
-//            ex_status=pokeOutM;
-            ex_status=wandering;
+            ex_status=pokeOutM;
             fm->off();
             if(fl->isOn()){
               fl->off();
@@ -1221,12 +1221,12 @@ class Test:public ExperimentalProcedure
             }
           }
           break;
-//        case pokeOutM:
-//          if(!pbm->isInterrupted()){
-//            ex_status=wandering;
-//            writeData("OM",t);
-//          }
-//          break;
+        case pokeOutM:
+          if(!pbm->isInterrupted()){
+            ex_status=wandering;
+            writeData("OM",t);
+          }
+          break;
       }
     }
   }
@@ -1268,8 +1268,6 @@ class TestBox:public ExperimentalProcedure
     }
   }
 };
-
-
 
 
 int stage;
@@ -1378,7 +1376,7 @@ Stage3 s3;
 Stage4 s4;
 Test test;
 TestBox tb;
-int stopNumArray [100];  //create an array to store stop trial numbers. Stop number length should be no more than 100.
+int stopNumArray[100];  //create an array to store stop trial numbers. Stop number length should be no more than 100.
 
 void setup()
 {

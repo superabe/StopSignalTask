@@ -16,7 +16,7 @@ matplotlib.use("Qt5Agg")
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from .sst_summary import calCR, calRT, median, calSSRT2
+from .sst_summary import calCR, calRT, median, returnSSRT
 from .sst_mainwindow import Ui_MainWindow
 from .sst_newTraining import Ui_Dialog
 from .SerialConnection import SerialConnection
@@ -210,8 +210,12 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.timeSinceStart=0
 
         # save data to txt file
-        self.saveData()
+        filename = self.saveData()
         self.resultSaved=True
+
+        if self.getParams()['stage']==5:
+            ssrt = str(self.getSSRT(filename))
+            self.ssrtLabel.setText(ssrt)
 
         # close serial monitor
         if self.serialMonitor is not None:
@@ -286,6 +290,13 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         f.write(str(data['laserOn']))
         f.write('\n')
         f.close()
+
+        ##Calculate SSRT
+        return fileName
+
+    def getSSRT(self, filename):
+        ssrt = returnSSRT(filename)
+        return ssrt
 
     def about(self):
         QMessageBox.about(self, "About",

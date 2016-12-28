@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 from scipy.stats import skewtest
+from preprocess import loadData, calSSRT2
 #from pandas import DataFrame
 
 
@@ -132,82 +133,14 @@ def plotRTD(rt,baseline=20,col='green',num_bins=30):
     plt.ylabel('Frequency',fontsize='x-large')
     plt.show()
 
-
-def calSSRT(rt,SSD,baseline=20,isTracked=True):
-    '''
-    Calculate the SSRT according to tracking method.
-
-    Parameters
-    ----------
-    rt: The Go Reaction Time array.
-    SSD: Stop Signal Delay array.
-    isTracked: Whether using track method.
-
-    Returns
-    -------
-    SSRT: numpy.ndarray
-        return Stop Signal Reaction Time
-
-    '''
-    rt=rt[(baseline+1):]
-    # Fisrt, check skewness of rt distribution
-    z, p = skewtest(rt)
-    print(('Skewness Test Result: ' + 'P-Value '+str(round(p,2))))
-    if z > 0 and p < 0.05:
-        print('RT distribution is right skewed, SSRT estimation may be inacurrate')
-    # SSRT Calculation
-    if isTracked:
-        ssrt = np.median(rt) - np.mean(SSD)/1000.0
+def returnSSRT(filename):
+    data = loadData(filename)['df']
+    if data.shape[0]>320:
+        ssrt = calSSRT2(data)
+        return ssrt
     else:
-        print('SSD fixed SSRT Estimation')
-        ssrt = np.percentile(rt,50) - np.mean(SSD)/1000.0
-    print('SSRT: ')
-    return ssrt
-
-def calSSRT2(list1,list2,SSD,trialType,baseline=20,block_num=5,block_length=60,stop_in_block=10.0/60,isTracked=True):
-    '''
-
-    Calculate the SSRT according to tracking method.
-
-
-    Parameters
-    ----------
-    rt: The Go Reaction Time array.
-
-    SSD: Stop Signal Delay array.
-    isTracked: Whether using track method.
-
-    Returns
-
-    -------
-    SSRT: numpy.ndarray
-        return Stop Signal Reaction Time
-
-    '''
-    blocks=[]
-    ssds=[]
-    list1=list1[(baseline+1):]
-    list2=list2[(baseline+1):]
-    trialType=trialType[(baseline+1):]
-    trialNum=[i for i in range(len(trialType)) if trialType[i]==2]
-    try:
-        assert len(list1)==len(list2) and len(list1)>=block_num*block_length
-    except AssertionError as e:
-        print(e.message)
         return 0
-    for i in range(block_num):
-        blocks.append(calRT(list1[(i*block_length+1):((i+1)*block_length+1)],list2[(i*block_length+1):((i+1)*block_length+1)]))
-        ssds.append([SSD[j] for j in range(len(trialNum)) if trialNum[j]<=(i+1)*block_length and trialNum[j]>i*block_length])
-    # SSRT Calculation
-    def cal(x,y):
-        return np.median(x)-np.mean(y)/1000.0
-    if isTracked:
-        ssrt = np.mean(list(map(cal, blocks, ssds)))
-    else:
-        print('SSD fixed SSRT Estimation')
-        pass
-    print('SSRT: ')
-    return ssrt
+
 
 def median(list1):
     '''

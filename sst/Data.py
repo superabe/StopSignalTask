@@ -22,7 +22,7 @@ class Data:
         self.missedData = []
         self.missedStopCheck = []
         self.laserOn = []
-        
+
     def write(self,incomingData):
         # append timestamps of different events
         data=incomingData.split(',')
@@ -32,7 +32,7 @@ class Data:
                 t=float(data[1])
             except ValueError:
                 event='Missing Data'
-                t=str(data[0])+','+str(data[1])
+                t=str(data[0])
             print((event, t))
             if(event=='IL'):
                 self.pokeInL.append(t/1.024)
@@ -66,11 +66,11 @@ class Data:
                 self.missedData.append(t)
             elif(event=='check stop timeout'):
                 self.missedStopCheck.append(t)
-            elif(event=='trialNum' and t>1):
+            elif(event=='TN' and t>1):
                 return 0
         return 1
-            
-                    
+
+
     def getData(self):
         return {'pokeInL':self.pokeInL,'pokeOutL':self.pokeOutL,'pokeInR':self.pokeInR,
                 'pokeOutR':self.pokeOutR,'pokeInM':self.pokeInM,'pokeOutM':self.pokeOutM,
