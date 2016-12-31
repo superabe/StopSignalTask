@@ -18,6 +18,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         self.myCamera = cv2.VideoCapture(0)
         self.C_TYPE_FORMAT = C_TYPE_FORMAT
         print('Connection Established')
+        self.start_time = 0
+        self.current_time = 0
         socketserver.BaseRequestHandler.__init__(self, request, client_address, server)
 
     def captureVideo(self, trialNum = 0, current_time = 0):
@@ -31,7 +33,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             cv2.putText(frame, 'Trial Finished: '+str(trialNum), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA )
             # transform seconds to minutes and print it on the screen
             current_time = current_time // 60
-            cv2.putText(frame, 'TimeElapsed: '+str(current_time)+' min', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA )
+            cv2.putText(frame, 'Time Elapsed: '+str(current_time)+' min', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA )
             # image compression
             r, frame = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 30])
             return((r, frame))
@@ -51,21 +53,11 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         # request handler
-        current_time = 0
-        start_time = 0
         while True:
             # get the data to send
             trialNum = self.server.getTrialNum()
-            isRunning = self.server.isSessionRunning()
-            if isRunning and start_time == 0:
-                start_time = time.clock()
-                current_time = start_time
-            elif isRunning and start_time >0:
-                current_time = time.clock()-start_time
-            elif not isRunning:
-                current_time = 0
-                start_time = 0
-            r, frame = self.captureVideo(trialNum, current_time)
+            timeElapsed = self.server.getTimeSinceStart()
+            r, frame = self.captureVideo(trialNum, timeElapsed)
             data_to_send = self.pack_data(frame)
             self.request.sendall(data_to_send)
 
