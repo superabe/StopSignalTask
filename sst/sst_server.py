@@ -30,10 +30,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             # resize the frame to 480 width while keeping the ratio
             frame = imutils.resize(frame, width=480)
             # print trial number on the screen
-            cv2.putText(frame, 'Trial Finished: '+str(trialNum), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA )
+            cv2.putText(frame, 'Trial Finished: '+str(trialNum), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (66, 97, 240), 1, cv2.LINE_AA )
             # transform seconds to minutes and print it on the screen
             current_time = current_time // 60
-            cv2.putText(frame, 'Time Elapsed: '+str(current_time)+' min', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA )
+            cv2.putText(frame, 'Time Elapsed: '+str(current_time)+' min', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (66, 97, 240), 1, cv2.LINE_AA )
             # image compression
             r, frame = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 30])
             return((r, frame))
@@ -58,7 +58,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             trialNum = self.server.getTrialNum()
             timeElapsed = self.server.getTimeSinceStart()
             r, frame = self.captureVideo(trialNum, timeElapsed)
-            data_to_send = self.pack_data(frame)
+            data_to_send = self.pack_data(frame) + sefl.pack_data(trialNum)
             self.request.sendall(data_to_send)
 
 

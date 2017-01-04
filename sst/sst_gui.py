@@ -523,7 +523,7 @@ def main():
     server.getTrialNum = window.getCurrentTrialNum
     server.getTimeSinceStart = window.getTimeSinceStart
     threading.Thread(target=server.serve_forever).start()
-    threading.Thread(target=displayVideo).start()
+    #threading.Thread(target=displayVideo).start()
 
     if window.isConnectedToBoard():
         window.show()
