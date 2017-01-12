@@ -1,22 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu May 21 16:56:24 2015
-
 @author: lin
 """
 import serial
-import queue
+from struct import unpack
 
 class SerialConnection:
-    
+
     def __init__(self, port, baudrate):
         self.port = port
         self.baudrate = baudrate
         self.connection=None
-        self.tempQueue=queue.Queue()
-        self.inCompleteData=''
+        self.completeData=None
         try:
-            self.connection = serial.Serial(self.port, self.baudrate)
+            self.connection = serial.Serial(self.port, self.baudrate, timeout=1)
         except serial.SerialException as e:
             print(e)
 
@@ -25,27 +22,27 @@ class SerialConnection:
 
     def opened(self):
         return not self.connection==None
-        
+
     def write(self, something):
         if(self.opened()):
             self.connection.write(something.encode())
-    
+
     def read(self):
         if(self.opened()):
-            while(self.connection.inWaiting()):
+            self.completeData=[]
+            while(self.connection.in_waiting):
                 try:
-                    inChar = self.connection.read().decode()
-                    if inChar=='\n':
-                        self.tempQueue.put(self.inCompleteData)
-                        self.inCompleteData=''
-                    else:
-                        self.inCompleteData+=inChar
+                    data_in = self.connection.read().decode()
+                    if data_in == '<':
+                        event = self.connection.read(2).decode()
+                        timestamp = unpack('<l',self.connection.read(4))[0]
+                        self.completeData.append(event+','+str(timestamp))
                 except UnicodeDecodeError:
                     pass
-            return self.tempQueue
-     
+        return self.completeData
+
     def getPort(self):
         return self.port
-        
+
     def getBaudrate(self):
         return self.baudrate

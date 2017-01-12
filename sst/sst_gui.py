@@ -17,14 +17,14 @@ matplotlib.use("Qt5Agg")
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from .sst_summary import calCR, calRT, median, returnSSRT
-from .sst_mainwindow import Ui_MainWindow
-from .sst_newTraining import Ui_Dialog
-from .SerialConnection import SerialConnection
-from .SerialMonitor import SerialMonitor
-from .Data import Data
-from .sst_server import ThreadedTCPServer, MyTCPHandler
-from .sst_video import displayVideo
+from sst.sst_summary import calCR, calRT, returnSSRT
+from sst.sst_mainwindow import Ui_MainWindow
+from sst.sst_newTraining import Ui_Dialog
+from sst.SerialConnection import SerialConnection
+from sst.SerialMonitor import SerialMonitor
+from sst.Data import Data
+from sst.sst_server import ThreadedTCPServer, MyTCPHandler
+from sst.sst_video import displayVideo
 
 
 class mainWindow(QMainWindow, Ui_MainWindow):
@@ -107,10 +107,11 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.timerForTimeDisplay.start(1000)
         self.timerForRuningDisplay.start(500)
 
-        # start serial monitor
+        #start serial monitor
         if self.serialMonitor is None:
-            self.serialMonitor = SerialMonitor(Data(), self.connection)
+           self.serialMonitor = SerialMonitor(Data(), self.connection)
         self.serialMonitor.state.connect(self.trialEndUpdate)
+
         self.serialMonitor.start()
 
         # send session parameters to arduino
@@ -148,7 +149,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         if stopNum>100:
             stopNum=100 # stop number should be less than 100.
             while stopNum%int(params['blockNumber'])!=0:
-                params['blockNumber'] = srt(int(params['blockNumber'])-1)
+                stopNum -= 1
 
         paramsToSend = str(params['stage'])+','+params['direction']+','+params['lh']+','\
                            +params['sessionLength']+','+params['baseline']+','+str(stopNum)+','\
@@ -171,7 +172,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
             self.runingLabel.setVisible(True)
 
     def trialEndUpdate(self):
-        data = self.serialMonitor.getData().getData()
+        data = self.serialMonitor.get_data().get()
         stage = self.getParams()['stage']
 
         self.trialNum += 1
@@ -183,10 +184,10 @@ class mainWindow(QMainWindow, Ui_MainWindow):
                 rt = calRT(data['pokeOutL'],data['pokeInR'])
             # cal initial ssd and send to control program
             if self.trialNum==int(self.getParams()['baseline']) and stage==5:
-                if median(rt)>0:
-                    self.connection.write(str(median(rt))+',')
+                if np.median(rt)>0:
+                    self.connection.write(str(np.median(rt))+'\n')
                 else:# If median of rt was less than 0, then stop delay will be set to zero
-                    self.connection.write('0,')
+                    self.connection.write('0\n')
 
             cr = calCR(data['trialType'],data['isRewarded'])
             self.goPerfLabel.setText(str(float(cr['GoTrial'])*100)+'%')
@@ -250,7 +251,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         fileName = 'SST Report ' + createdTime + '.txt'
         while os.path.exists(fileName):
             fileName = fileName[0:-4] + ' new' + '.txt'
-        data = self.serialMonitor.getData().getData()
+        data = self.serialMonitor.get_data().get()
         f = open(fileName,'w')
         f.write('General Message:\n')
         f.write('trialNum: ')   #### line 2
@@ -522,7 +523,9 @@ def main():
     server = ThreadedTCPServer((HOST, PORT),MyTCPHandler)
     server.getTrialNum = window.getCurrentTrialNum
     server.getTimeSinceStart = window.getTimeSinceStart
-    threading.Thread(target=server.serve_forever).start()
+    video_server = threading.Thread(target=server.serve_forever)
+    video_server.daemon = True
+    video_server.start()
     #threading.Thread(target=displayVideo).start()
 
     if window.isConnectedToBoard():

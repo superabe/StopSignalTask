@@ -22,56 +22,64 @@ class Data:
         self.missedData = []
         self.missedStopCheck = []
         self.laserOn = []
+        self.tempData = []
 
-    def write(self,incomingData):
+    def write(self,data_in):
         # append timestamps of different events
-        data=incomingData.split(',')
-        if(len(data)>1):
-            try:
-                event=str(data[0])
-                t=float(data[1])
-            except ValueError:
-                event='Missing Data'
-                t=str(data[0])
-            print((event, t))
-            if(event=='IL'):
-                self.pokeInL.append(t/1.024)
-            elif(event=='OL'):
-                self.pokeOutL.append(t/1.024)
-            elif(event=='IM'):
-                self.pokeInM.append(t/1.024)
-            elif(event=='OM'):
-                self.pokeOutM.append(t/1.024)
-            elif(event=='IR'):
-                self.pokeInR.append(t/1.024)
-            elif(event=='OR'):
-                self.pokeOutR.append(t/1.024)
-            elif(event=='SS'):#stop signal start
-                self.stopSignalStart.append(t/1.024)
-            elif(event=='RS'):#reward start
-                self.rewardStart.append(t/1.024)
-                if(t==0):
-                    self.isRewarded.append(0)
-                else:
-                    self.isRewarded.append(1)
-            elif(event=='TT'):#trialType
-                self.trialType.append(int(t))
-            elif(event=='SSD'):
-                self.SSDs.append(t/1.024)
-            elif(event=='TS'):#trialSkipped
-                self.trialsSkipped.append(int(t))
-            elif(event=='L'):#Laser on timestamps
-                self.laserOn.append(t/1.024)
-            elif(event=='Missing Data'):
-                self.missedData.append(t)
-            elif(event=='check stop timeout'):
-                self.missedStopCheck.append(t)
-            elif(event=='TN' and t>1):
-                return 0
+        data_in = data_in.split(',')
+        print(data_in)
+        if(len(data_in)>0):
+            self.tempData += data_in
+            while(len(self.tempData)>=2):
+                try:
+                    event=str(self.tempData[0])
+                    t=float(self.tempData[1])
+                    if(len(self.tempData)>2):
+                        self.tempData = self.tempData[2:]
+                    else:
+                        self.tempData = []
+                except ValueError:
+                    event='Missing Data'
+                    t=self.tempData
+                    self.tempData = []
+                    break
+                #print((event, t))
+                if(event=='IL'):
+                    self.pokeInL.append(t/1.024)
+                elif(event=='OL'):
+                    self.pokeOutL.append(t/1.024)
+                elif(event=='IM'):
+                    self.pokeInM.append(t/1.024)
+                elif(event=='OM'):
+                    self.pokeOutM.append(t/1.024)
+                elif(event=='IR'):
+                    self.pokeInR.append(t/1.024)
+                elif(event=='OR'):
+                    self.pokeOutR.append(t/1.024)
+                elif(event=='SS'):#stop signal start
+                    self.stopSignalStart.append(t/1.024)
+                elif(event=='RS'):#reward start
+                    self.rewardStart.append(t/1.024)
+                    if(t==0):
+                        self.isRewarded.append(0)
+                    else:
+                        self.isRewarded.append(1)
+                elif(event=='TT'):#trialType
+                    self.trialType.append(int(t))
+                elif(event=='SD'):
+                    self.SSDs.append(t/1.024)
+                elif(event=='TS'):#trialSkipped
+                    self.trialsSkipped.append(int(t))
+                elif(event=='L'):#Laser on timestamps
+                    self.laserOn.append(t/1.024)
+                elif(event=='Missing Data'):
+                    self.missedData.append(t)
+                elif(event=='TN' and t>1):
+                    return 0
         return 1
 
 
-    def getData(self):
+    def get(self):
         return {'pokeInL':self.pokeInL,'pokeOutL':self.pokeOutL,'pokeInR':self.pokeInR,
                 'pokeOutR':self.pokeOutR,'pokeInM':self.pokeInM,'pokeOutM':self.pokeOutM,
                 'rewardStart':self.rewardStart,'stopSignalStart':self.stopSignalStart,
