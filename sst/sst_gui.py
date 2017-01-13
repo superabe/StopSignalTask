@@ -7,9 +7,9 @@ import time
 import random
 import datetime
 import threading
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QSizePolicy,QMessageBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QSizePolicy, QMessageBox
 from PyQt5.QtCore import QTimer
-from PyQt5.QtGui import QPixmap,QValidator, QIntValidator
+from PyQt5.QtGui import QPixmap, QValidator, QIntValidator
 
 import numpy as np
 import matplotlib
@@ -110,7 +110,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         #start serial monitor
         if self.serialMonitor is None:
            self.serialMonitor = SerialMonitor(Data(), self.connection)
-        self.serialMonitor.state.connect(self.trialEndUpdate)
+        self.serialMonitor.STATE.connect(self.trialEndUpdate)
 
         self.serialMonitor.start()
 
@@ -535,3 +535,4 @@ def main():
 if __name__=='__main__':
 
     main()
+ 

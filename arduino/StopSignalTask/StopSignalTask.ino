@@ -38,20 +38,20 @@ int pin_power = 12;
 //Experimental Configuration
 int threshold_for_photobeam = 500;
 long LH = 1536; //1500ms*1.024
-long t;
+unsigned long t;
 long baudrate = 115200;
-long time_tick;
+unsigned long time_tick;
 
 // Some useful helper functions.
 
-// interrupt service ruitine
-// This ruitine was registered to count time tick at 1024hz.
+// interrupt service routine
+// This routine was registered to count time tick at 1024hz.
 
 void isr(){
   time_tick++;
 }
 
-long newMillis(){
+unsigned long newMillis(){
   return time_tick;
 }
 
@@ -64,27 +64,10 @@ void check_command_for_arduino_restart(){
     }
   }
 }
-/*
-bool checkIfStop(long t, int k)
-{ 
-  // 20ms timeout
-  while(newMillis()-t<100){
-    if(Serial.available()){
-      char isStop=Serial.read();
-      if(isStop=='n'){
-        return false;
-      }else if(isStop=='s'){
-        return true; 
-      }
-    }
-  }
-  writeData("check stop timeout",k);
-  return false;
-}
-*/
+
 // Output data to Serial for communication with python
 // the length of str should be equal or less than 2
-void writeData(const char str[], long t){
+void writeData(const char str[], unsigned long t){
   byte ts[4];  // byte array to store timestamp
 
   ts[0] = t & 255;  // add long t
@@ -153,7 +136,7 @@ class Flasher
     bool isON;
     int state;
     int interval;
-    long onMillis;
+    unsigned long onMillis;
     Flasher(int pin)
     {
       ledpin = pin;
@@ -179,7 +162,7 @@ class Flasher
       digitalWrite(ledpin, state);
       isON = false;
     }
-    void updateState(long t)
+    void updateState(unsigned long t)
     {
       if(isON){
          if(t-onMillis>interval){
@@ -207,11 +190,11 @@ class Laser
     int laserpin;
     bool isON;
     int state;
-    long onMillis;
-    long laserStartMillis;
+    unsigned long onMillis;
+    unsigned long laserStartMillis;
     int interval;
     int pulseDuration;
-    long totalDuration; 
+    unsigned long totalDuration; 
     Laser(int pin)
     {
       laserpin = pin;
@@ -221,7 +204,7 @@ class Laser
       onMillis=0;
       laserStartMillis=0;
     }
-    void setParams(int freq, int pulseDur, long totalDur)
+    void setParams(int freq, int pulseDur, unsigned long totalDur)
     {
       // dur: millisecond
       interval = 1024/freq;
@@ -244,7 +227,7 @@ class Laser
       digitalWrite(laserpin, state);
       isON = false;
     }
-    void updateState(long t)
+    void updateState(unsigned long t)
     {
       if(t-laserStartMillis<totalDuration){
         if(isON){
@@ -306,7 +289,7 @@ class RewardValve
   public:
     int rewardpin;
     long rewardVolume;
-    long rewardStartTime;
+    unsigned long rewardStartTime;
     // long rewardEndTime;
     bool rewardOn;
     RewardValve(int pin)
@@ -376,8 +359,8 @@ class ExperimentalProcedure
   int ex_status;
   bool delayOn;
   bool errorDelayOn;
-  long delayOnTime;
-  long errorDelayOnTime;
+  unsigned long delayOnTime;
+  unsigned long errorDelayOnTime;
   long requiredDelay;
   long requiredErrorDelay;
   public:
@@ -391,7 +374,7 @@ class ExperimentalProcedure
     errorDelayOnTime=0;
     requiredErrorDelay=eDelay;
   }  
-  virtual void updating(long t){};  
+  virtual void updating(unsigned long t){};  
 };
 
 
@@ -425,7 +408,7 @@ class Stage1:public ExperimentalProcedure
     requiredDelay=rdelay;
   }
   
-  void updating(long t){
+  void updating(unsigned long t){
     check_command_for_arduino_restart();  // receive command to restart();
     if (reward.isRewarding())
     {
@@ -493,7 +476,7 @@ class Stage2:public ExperimentalProcedure
     }
   }
 
-  void updating(long t)
+  void updating(unsigned long t)
   {
     check_command_for_arduino_restart();
     if (reward.isRewarding())
@@ -554,7 +537,7 @@ class Stage3:public ExperimentalProcedure
   bool lh;
   char side;
   long limitedHold;
-  long lhStartTime;
+  unsigned long lhStartTime;
   int trialNum;
   public:
   Stage3():ExperimentalProcedure(){}
@@ -582,7 +565,7 @@ class Stage3:public ExperimentalProcedure
     }
   }
 
-  void updating(long t)
+  void updating(unsigned long t)
   {
     check_command_for_arduino_restart();
     if (reward.isRewarding())
@@ -696,7 +679,7 @@ class Stage4:public ExperimentalProcedure
   bool isStopTrial;
   bool stopChecked;
   long limitedHold;
-  long lhStartTime;
+  unsigned long lhStartTime;
   int trialNum;
   int sessionLength;  //total trial number (320 trials usually)
   int baselineLength; //baseline trial number (20 trials usually)
@@ -736,16 +719,8 @@ class Stage4:public ExperimentalProcedure
       pbr = &pb[0];
     }
   }
-  
-  void printStopArray(){
-    for(int i=0;i<stopTrialsNum;i++){
-      Serial.print(i);
-      Serial.print(",");
-      Serial.println(stopArray[i]);
-    }
-  }
     
-  void updating(long t)
+  void updating(unsigned long t)
   {
     check_command_for_arduino_restart();
     if(reward.isRewarding())
@@ -921,10 +896,10 @@ class Test:public ExperimentalProcedure
   bool isStopTrial;
   bool stopChecked;
   long limitedHold;
-  long lhStartTime;
-  long pokeOutRTime;
+  unsigned long lhStartTime;
+  unsigned long pokeOutRTime;
   long pokeOutRConfirmRequiredInterval;
-  long stopDelayOnTime;
+  unsigned long stopDelayOnTime;
   bool stopDelayOn;
   bool stopSkipped;
   int trialNum;
@@ -1040,7 +1015,7 @@ class Test:public ExperimentalProcedure
   }
 
   
-  void updating(long t)
+  void updating(unsigned long t)
   {
     // obtain the initial stop signal delay ssd when baseline ended from the control program in PC.
     while(trialNum==baselineLength+1 && !ssdCatched){
@@ -1325,7 +1300,7 @@ class Test:public ExperimentalProcedure
 
 class TestBox:public ExperimentalProcedure
 {
-  long lastPBCheckTime;
+  unsigned long lastPBCheckTime;
   long requiredDelay;
   public:
   TestBox():ExperimentalProcedure(){}
@@ -1435,7 +1410,7 @@ void generateStopTrialNum(int stopArray[], int startN, int endN, int N){
       }
     }
   }
- }
+}
 
 // Helper function: swap two values in an array
 void swap(int vals[], int a, int b)
@@ -1538,7 +1513,7 @@ void setup()
   }else{
     Serial.println("Wrong Arguments!,0");
   } 
-  Serial.println("Session Start,0");
+  //Serial.println("Session Start,0");
   // attach interrupt to DS3231 square wave output 
   // This gives a much more accurate time count  1s=1024 ticks
   RTC.squareWave(SQWAVE_1024_HZ);

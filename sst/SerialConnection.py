@@ -2,61 +2,54 @@
 """
 @author: lin
 """
-import serial
 from struct import unpack
+import serial
 
-class SerialConnection:
+class SerialConnection(object):
+    '''
+    Encapsulation for serial connection
+    '''
+    EVENT_LENGTH = 2
+    TIMESTAMP_LENGTH = 4
 
     def __init__(self, port, baudrate):
         self.port = port
         self.baudrate = baudrate
-        self.connection=None
-        self.completeData=None
+        self.connection = None
+        self.complete_data = None
         try:
-            self.connection = serial.Serial(self.port, self.baudrate, timeout=3)
+            self.connection = serial.Serial(self.port, self.baudrate)
         except serial.SerialException as e:
-            print(e)
+            print('Serial Connection Exception {0}'.format(e))
 
     def isNull(self):
         return self.connection == None
 
     def opened(self):
-        return not self.connection==None
+        return not self.connection == None
 
     def write(self, something):
-        if(self.opened()):
+        if self.opened():
             self.connection.write(something.encode())
 
     def read(self):
-        if(self.opened()):
-            self.completeData=[]
-            while(self.connection.in_waiting):
+        if self.opened():
+            self.complete_data = []
+            while self.connection.in_waiting:
                 try:
-                    data_in = self.connection.read().decode()
-                    if data_in == '<':
-                        counter = 0
-                        event = ''
-                        ts = b''
-                        while True:
-                            if counter == 2:
-                                counter = 0
-                                break
-                            event += self.connection.read().decode()
-                            counter += 1
-                        while True:
-                            if counter == 4:
-                                counter = 0
-                                break
-                            ts += self.connection.read()
-                            counter += 1
+                    _ = self.connection.read().decode()
+                    if _ == '<':
+                        event = self.connection.read(self.EVENT_LENGTH).decode()
+                        ts = self.connection.read(self.TIMESTAMP_LENGTH)
                         try:
-                            timestamp = unpack('<l',ts)[0]
+                            timestamp = unpack('<l', ts)[0]
                         except:
-                            timestamp = 0
-                        self.completeData.append(event+','+str(timestamp))
+                            timestamp = -1
+                        self.complete_data.append((event, timestamp))
                 except UnicodeDecodeError:
-                    pass
-        return self.completeData
+                    event = 'Error'
+                    self.complete_data.append((event, timestamp))
+        return self.complete_data
 
     def getPort(self):
         return self.port
