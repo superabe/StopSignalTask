@@ -57,10 +57,10 @@ long newMillis(){
 
 // receive command to restart
 void check_command_for_arduino_restart(){
-  if(Serial.available()){
-  char command = Serial.read();
-  if(command=='r'){
-    soft_restart();
+  while(Serial.available()){
+    char command = Serial.read();
+    if(command=='r'){
+      soft_restart();
     }
   }
 }
@@ -1272,7 +1272,7 @@ class Test:public ExperimentalProcedure
             }else{
               ssd=limitedHold;
             }
-            writeData("s_",+50);
+            writeData("S+",50);
             stopArrayUpdate(stopSkipped); // update stop array
           }else if(isStopTrial && stopSkipped){
             stopSkipped=false;
@@ -1296,7 +1296,7 @@ class Test:public ExperimentalProcedure
             }
             delayOn=true;
             delayOnTime=t-requiredDelay+1024;  //stop error delay is 1 second
-            writeData("s_",-50);
+            writeData("S-",50);
             if(side=='l')
               writeData("IL",t);
             else

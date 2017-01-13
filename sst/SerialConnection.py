@@ -13,7 +13,7 @@ class SerialConnection:
         self.connection=None
         self.completeData=None
         try:
-            self.connection = serial.Serial(self.port, self.baudrate, timeout=1)
+            self.connection = serial.Serial(self.port, self.baudrate, timeout=3)
         except serial.SerialException as e:
             print(e)
 
@@ -34,8 +34,25 @@ class SerialConnection:
                 try:
                     data_in = self.connection.read().decode()
                     if data_in == '<':
-                        event = self.connection.read(2).decode()
-                        timestamp = unpack('<l',self.connection.read(4))[0]
+                        counter = 0
+                        event = ''
+                        ts = b''
+                        while True:
+                            if counter == 2:
+                                counter = 0
+                                break
+                            event += self.connection.read().decode()
+                            counter += 1
+                        while True:
+                            if counter == 4:
+                                counter = 0
+                                break
+                            ts += self.connection.read()
+                            counter += 1
+                        try:
+                            timestamp = unpack('<l',ts)[0]
+                        except:
+                            timestamp = 0
                         self.completeData.append(event+','+str(timestamp))
                 except UnicodeDecodeError:
                     pass
