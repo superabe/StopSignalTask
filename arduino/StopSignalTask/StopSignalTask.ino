@@ -22,6 +22,9 @@
 #define DELAY_ON 0xFA
 #define DELAY_OFF 0xFB
 
+#define START_MARKER 0x3C  // '<' symbol
+#define END_MARKER 0x3E    // '>' symbol
+
 //Arduino pin configuration
 int pin_flasherL = 6;
 int pin_flasherM = 7;
@@ -42,6 +45,9 @@ unsigned long t;
 long baudrate = 115200;
 unsigned long time_tick;
 
+String command_from_pc = "";
+String complete_command = "";
+bool recv_in_progress = false;
 // Some useful helper functions.
 
 // interrupt service routine
@@ -55,14 +61,24 @@ unsigned long newMillis(){
   return time_tick;
 }
 
-// receive command to restart
-void check_command_for_arduino_restart(){
-  while(Serial.available()){
-    char command = Serial.read();
-    if(command=='r'){
-      soft_restart();
+// receive data from PC with start and end mark
+void recvCommandFromPC() {
+    while (Serial.available() > 0) {
+        char rb = Serial.read();
+
+        if (recv_in_progress) {
+            if (rb != END_MARKER) {
+                command_from_pc += rb;
+            } else {
+                recv_in_progress = false;
+                complete_command = command_from_pc;
+                command_from_pc = "";
+            }
+        }
+        else if (rb == START_MARKER) {
+            recv_in_progress = true;
+        }
     }
-  }
 }
 
 // Output data to Serial for communication with python
@@ -74,9 +90,10 @@ void writeData(const char str[], unsigned long t){
   ts[1] = (t >> 8)  & 255;
   ts[2] = (t >> 16) & 255;
   ts[3] = (t >> 24) & 255;
-  Serial.write('<');   // append a start symbol
+  Serial.write(START_MARKER);   // append a start symbol
   Serial.write(str,2);  // write str
   Serial.write(ts,4);   // write ts
+  Serial.write(END_MARKER);
 }
 
 void writeCorrectStop(char side='l'){
@@ -409,11 +426,16 @@ class Stage1:public ExperimentalProcedure
   }
   
   void updating(unsigned long t){
-    check_command_for_arduino_restart();  // receive command to restart();
     if (reward.isRewarding())
     {
     if (t - reward.getRewardStartTime() >= reward.getRewardVolume())
       reward.off();
+    }
+    while(Serial.available()){
+      char c = Serial.read();
+      if(c=='r'){
+        soft_restart();
+      }
     }
     if (delayOn)
     {
@@ -478,11 +500,16 @@ class Stage2:public ExperimentalProcedure
 
   void updating(unsigned long t)
   {
-    check_command_for_arduino_restart();
     if (reward.isRewarding())
     {
       if (t - reward.getRewardStartTime() >= reward.getRewardVolume())
         reward.off();
+    }
+    while(Serial.available()){
+      char c = Serial.read();
+      if(c=='r'){
+        soft_restart();
+      }
     }
     sf->updateState(t);
     fm->updateState(t);
@@ -567,7 +594,6 @@ class Stage3:public ExperimentalProcedure
 
   void updating(unsigned long t)
   {
-    check_command_for_arduino_restart();
     if (reward.isRewarding())
     {
       if (t - reward.getRewardStartTime() >= reward.getRewardVolume())
@@ -576,7 +602,13 @@ class Stage3:public ExperimentalProcedure
     if(lh){
       if(t-lhStartTime>limitedHold)
         lh=false;
-    }    
+    }  
+    while(Serial.available()){
+      char c = Serial.read();
+      if(c=='r'){
+        soft_restart();
+      }
+    }
     fm->updateState(t);
     fr->updateState(t);
     fl->updateState(t);
@@ -685,6 +717,8 @@ class Stage4:public ExperimentalProcedure
   int baselineLength; //baseline trial number (20 trials usually)
   int stopTrialsNum;  // the number of stop trials in the total trials.
   int *stopArray;
+  unsigned long pokeOutRTime;
+  long pokeOutRConfirmRequiredInterval;
   
   public:
   Stage4():ExperimentalProcedure(){}
@@ -702,6 +736,8 @@ class Stage4:public ExperimentalProcedure
     requiredDelay=rdelay;
     stopArray = stopArr;
     stopSignal=&stopS;
+    pokeOutRTime=0;
+    pokeOutRConfirmRequiredInterval=10;  //10ms to confirm the behavior is indeed happened.
     if(side=='l')
     {
       fl = &f[0];
@@ -722,7 +758,6 @@ class Stage4:public ExperimentalProcedure
     
   void updating(unsigned long t)
   {
-    check_command_for_arduino_restart();
     if(reward.isRewarding())
     {
       if (t - reward.getRewardStartTime() >= reward.getRewardVolume()){
@@ -739,6 +774,14 @@ class Stage4:public ExperimentalProcedure
       fr->updateState(t);
       fl->updateState(t);
     }
+    if(trialNum>=sessionLength || trialNum<=baselineLength){
+      while(Serial.available()){
+        char c = Serial.read();
+        if(c=='r'){
+          soft_restart();
+        }
+      }
+    }
     switch(ex_status){
       case wandering:
         if(delayOn){
@@ -754,7 +797,7 @@ class Stage4:public ExperimentalProcedure
         trialNum++;
         writeData("TN",trialNum);
         if(trialNum>baselineLength){
-          stopChecked=false;
+          //stopChecked=false;
           isStopTrial = checkIfStop(trialNum, stopArray, 0, stopTrialsNum-1);
           if(isStopTrial){
             writeData("TT",2);
@@ -792,21 +835,31 @@ class Stage4:public ExperimentalProcedure
         break;
       case pokeOutR:
         if(!pbr->isInterrupted()){
-          if(!isStopTrial){
-            ex_status=pokeInL;
-            lh=true;
-            lhStartTime=t;
-          }else if(isStopTrial){
-            ex_status=pokeInM;
-            stopSignal->on();
-            fl->off();
-            fm->on();
-            writeData("SS",t);
+            pokeOutRTime=t;
+            ex_status=pokeOutRConfirm;
+          }  
+        break;
+      case pokeOutRConfirm:
+        if(!pbr->isInterrupted()){
+          if(t-pokeOutRTime>pokeOutRConfirmRequiredInterval){
+            if(!isStopTrial){
+              ex_status=pokeInL;
+              lh=true;
+              lhStartTime=pokeOutRTime;
+            }else if(isStopTrial){
+              ex_status=pokeInM;
+              stopSignal->on();
+              //fl->off();
+              //fm->on();
+              writeData("SS",pokeOutRTime);
+              }
+            if(side=='l')
+              writeData("OR",pokeOutRTime);
+            else
+              writeData("OL",pokeOutRTime);
           }
-          if(side=='l')
-            writeData("OR",t);
-          else
-            writeData("OL",t);
+        }else{
+          ex_status = pokeOutR;
         }
         break;
       case pokeInL:
@@ -814,6 +867,7 @@ class Stage4:public ExperimentalProcedure
           ex_status=pokeOutL;
           fl->off();
           fm->on();
+          lh=false;
           if(side=='l')
             writeData("IL",t);  //output timestamp
           else
@@ -821,6 +875,7 @@ class Stage4:public ExperimentalProcedure
         }else if(lh && pbm->isInterrupted()){
           ex_status=wandering;
           fl->off();
+          lh=false;
           delayOn=true;
           delayOnTime=t;
           writeData("IM",t);
@@ -846,6 +901,7 @@ class Stage4:public ExperimentalProcedure
         if(pbm->isInterrupted()){       
           ex_status=pokeOutM;
           fm->off();
+          fl->off();
           reward.on();
           writeData("IM",t);
           writeData("RS",t);
@@ -853,7 +909,8 @@ class Stage4:public ExperimentalProcedure
             writeCorrectStop(side);
         }else if(isStopTrial && pbl->isInterrupted()){
           ex_status=wandering;
-          fm->off();
+          //fm->off();
+          fl->off();
           delayOn=true;
           delayOnTime=t;
           if(side=='l')
@@ -970,9 +1027,7 @@ class Test:public ExperimentalProcedure
   
   void printStopArray(){
     for(int i=0;i<stopTrialsNum;i++){
-      Serial.print(i);
-      Serial.print(",");
-      Serial.println(stopArray[i]);
+      writeData("0", stopArray[i]);
     }
   }
 
@@ -1032,8 +1087,15 @@ class Test:public ExperimentalProcedure
        }
     }
 
-    check_command_for_arduino_restart();
-    
+    if(trialNum>=sessionLength || trialNum<=baselineLength){
+      while(Serial.available()){
+        char c = Serial.read();
+        if(c=='r'){
+          soft_restart();
+        }
+      }
+    }
+
     if(reward.isRewarding())
     {
       if (t - reward.getRewardStartTime() >= reward.getRewardVolume()){
@@ -1087,7 +1149,7 @@ class Test:public ExperimentalProcedure
         writeData("TN",trialNum);
         // check if stop
         if(trialNum>baselineLength){
-          stopChecked=false;
+        //  stopChecked=false;
           isStopTrial = checkIfStop(trialNum, stopArray, 0, stopTrialsNum-1);
           if(isStopTrial){
               writeData("TT",2);
@@ -1164,6 +1226,7 @@ class Test:public ExperimentalProcedure
           ex_status=pokeOutL;
           stopDelayOn=false;
           stopSkipped=true;
+          lh=false;
           if(ssd>50)
             ssd-=50;
           else
@@ -1179,12 +1242,14 @@ class Test:public ExperimentalProcedure
         }else if(stopDelayOn && pbm->isInterrupted()){
           ex_status=wandering;
           stopDelayOn=false;
+          lh=false;
           fl->off();
           delayOn=true;
           delayOnTime=t;
           writeData("TS",trialNum);
           writeData("IM",t);
           writeGoError(side);
+          stopArrayUpdate(true);  //update stop array
         }
         break;
       case pokeInL:
@@ -1192,6 +1257,7 @@ class Test:public ExperimentalProcedure
           ex_status=pokeOutL;
           fl->off();
           fm->on();
+          lh=false;
           if(side=='l')
             writeData("IL",t);  //output timestamp
           else
@@ -1205,6 +1271,7 @@ class Test:public ExperimentalProcedure
           fl->off();
           delayOn=true;
           delayOnTime=t;
+          lh=false;
           writeData("IM",t);
           writeGoError(side);
           
@@ -1233,7 +1300,7 @@ class Test:public ExperimentalProcedure
         }
         break;
       case pokeInM:
-        if(pbm->isInterrupted() && (!isStopTrial || (isStopTrial && lh))){       
+        if(pbm->isInterrupted() && (!isStopTrial || (isStopTrial && !stopSkipped && lh) || (isStopTrial && stopSkipped))){       
           ex_status=pokeOutM;
           fm->off();
           if(fl->isOn()){
@@ -1241,6 +1308,7 @@ class Test:public ExperimentalProcedure
           }
           reward.on();
           if(isStopTrial && !stopSkipped){
+            lh=false;
             writeCorrectStop(side);
             if((ssd+50)<=limitedHold){
               ssd+=50;
@@ -1258,9 +1326,11 @@ class Test:public ExperimentalProcedure
           if(isStopTrial && isLaserExp && laserBlue->isOn()){       //laser off
             laserBlue->off();
           }
-        }else if(isStopTrial && (pbl->isInterrupted() || !lh)){
-          if(!stopSkipped){
-            ex_status=wandering;
+        }else if(isStopTrial && !stopSkipped && (pbl->isInterrupted() || !lh)){
+          ex_status=wandering;
+          if(!lh){
+            writeLHError(side);
+          }else{
             if(ssd>50)
               ssd-=50;
             else
@@ -1269,6 +1339,7 @@ class Test:public ExperimentalProcedure
             if(fl->isOn()){
               fl->off();
             }
+            lh=false;
             delayOn=true;
             delayOnTime=t-requiredDelay+1024;  //stop error delay is 1 second
             writeData("S-",50);
@@ -1277,14 +1348,13 @@ class Test:public ExperimentalProcedure
             else
               writeData("IR",t);
             writeStopError(side);
-
-            if(isLaserExp && laserBlue->isOn()){       //laser off
-            laserBlue->off();
-            }
-            stopArrayUpdate(stopSkipped);  // update stop array
-          }else{
-            ex_status=pokeInM;
           }
+          stopArrayUpdate(stopSkipped);
+          if(isLaserExp && laserBlue->isOn()){       //laser off
+          laserBlue->off();
+          }
+        }else{
+            ex_status=pokeInM;
         }
         break;
       case pokeOutM:
@@ -1309,22 +1379,26 @@ class TestBox:public ExperimentalProcedure
     lastPBCheckTime=newMillis();
   }
   
-  void updating(long t){
-    while(Serial.available()){
-      char inByte = Serial.read();
-      if(inByte=='t'){
-        reward.on();
-      }else if(inByte=='s'){
-        reward.off();
-      }else if(inByte=='f'){
-        stopS.on();
-      }else if(inByte=='l'){
-        laser.on();
-      }else if(inByte=='x'){
-        laser.off();
-      }else if(inByte=='r'){
-        soft_restart();
-      }
+  void updating(unsigned long t){
+    recvCommandFromPC();
+    if(complete_command[0]=='t'){
+      complete_command = "";
+      reward.on();
+    }else if(complete_command[0]=='s'){
+      complete_command = "";
+      reward.off();
+    }else if(complete_command[0]=='f'){
+      complete_command = "";
+      stopS.on();
+    }else if(complete_command[0]=='l'){
+      complete_command = "";
+      laser.on();
+    }else if(complete_command[0]=='x'){
+      complete_command = "";
+      laser.off();
+    }else if(complete_command[0]=='r'){
+      complete_command = "";
+      soft_restart();
     }
     if(t-lastPBCheckTime>requiredDelay){
       writeData("PL", pb[0].getVoltage());

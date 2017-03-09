@@ -36,8 +36,6 @@ def displayVideo(HOST='localhost', PORT=9999, C_TYPE_FORMAT = 'I'):
                     cv2.imshow('frame',frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
-                else:
-                    print('trialNum:'+str(frame))
 
                 data = data[(header_info_size+data_size):]
 

@@ -1,5 +1,10 @@
-scipy>=0.18.0
-numpy>=1.9
-pyserial>=2.7
-matplotlib>=1.4
-PyQt5
+imutils==0.3.10
+matplotlib==2.0.0
+numpy==1.11.3+mkl
+opencv-python==3.2.0+contrib
+pandas==0.19.2
+pygame==1.9.3
+pyparsing==2.1.10
+PyQt5==5.8
+pyserial==3.2.1
+scipy==0.18.1

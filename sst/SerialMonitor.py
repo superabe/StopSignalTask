@@ -27,11 +27,10 @@ class SerialMonitor(QThread):
         '''
         while self.alive:
             data_in = self.connection.read()
-            if data_in:
-                for each_data in data_in:
-                    k = self.data.write(each_data)
-                    if k == 0:
-                        self.STATE.emit()
+            while not data_in.empty():
+                k = self.data.write(data_in.get())
+                if k == 0:
+                    self.STATE.emit()
     def stop(self):
         '''
         stop the thread

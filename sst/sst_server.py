@@ -1,10 +1,11 @@
+'''
+A server for remote monitor of behavior.
+'''
 import socketserver
-import threading
-import cv2
-import imutils
 import pickle
 import struct
-import time
+import cv2
+import imutils
 
 class MyTCPHandler(socketserver.BaseRequestHandler):
     """
@@ -14,7 +15,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     override the handle() method to implement communication to the
     client.
     """
-    def __init__(self, request, client_address, server, C_TYPE_FORMAT = 'I'):
+    def __init__(self, request, client_address, server, C_TYPE_FORMAT='I'):
         self.myCamera = cv2.VideoCapture(0)
         self.C_TYPE_FORMAT = C_TYPE_FORMAT
         print('Connection Established')
@@ -22,7 +23,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         self.current_time = 0
         socketserver.BaseRequestHandler.__init__(self, request, client_address, server)
 
-    def captureVideo(self, trialNum = 0, current_time = 0):
+    def captureVideo(self, trialNum=0, current_time=0):
         # read frame from the camera
         if(self.myCamera.isOpened()):
             ret, frame = self.myCamera.read()

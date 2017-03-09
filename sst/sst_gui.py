@@ -7,9 +7,11 @@ import time
 import random
 import datetime
 import threading
+from pkg_resources import resource_stream
 from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QSizePolicy, QMessageBox
 from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QPixmap, QValidator, QIntValidator
+import pygame as pg
 
 import numpy as np
 import matplotlib
@@ -70,9 +72,14 @@ class mainWindow(QMainWindow, Ui_MainWindow):
 
         # initialize display
         self.timeElapsedLabel.setText('0 m 0 s')
+        
+        # initialize pygame
+        trial_end_alert = resource_stream('sst.resources', 'bell.mp3')
+        pg.mixer.init()
+        pg.mixer.music.load(trial_end_alert)
 
     def setParams(self, params):
-        self.parameters=params
+        self.parameters = params
     def getParams(self):
         return self.parameters
 
@@ -87,12 +94,12 @@ class mainWindow(QMainWindow, Ui_MainWindow):
     def openNewTraining(self):
         if(self.newTraining.exec_()):
             self.setParams(self.newTraining.getParameters())
-            self.configured=True
+            self.configured = True
             self.start_button.setEnabled(True)
 
 
     def sessionStart(self):
-        self.isRunning=True
+        self.isRunning = True
         self.start_button.setEnabled(False)
         self.end_button.setEnabled(True)
         self.actionNew_Training.setEnabled(False)
@@ -127,28 +134,28 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.histPlot.reset()
 
         params = self.getParams()
-        if params['direction']=='l':
+        if params['direction'] == 'l':
             textDirection = 'R>L>M'
         else:
             textDirection = 'L>R>M'
         descriptionalText = 'stage: '+str(params['stage'])+'\n'\
                             +'direction: '+textDirection+'\n'
         self.descriptionalLabel.setText(descriptionalText)
-        if(params['stage']==6):
-                self.testReward_button.setEnabled(True)
-                self.testStopSignal_button.setEnabled(True)
-                self.testLaser_button.setEnabled(True)
+        if(params['stage'] == 6):
+            self.testReward_button.setEnabled(True)
+            self.testStopSignal_button.setEnabled(True)
+            self.testLaser_button.setEnabled(True)
 
     def sendParams(self):
         # send parameters to arduino control program through serial communication
-        params=self.getParams()
-        if params['stage']==5:
-            stopNum=int((int(params['blockLength'])*float(params['stopPercent']))*int(params['blockNumber']))
+        params = self.getParams()
+        if params['stage'] == 5:
+            stopNum = int((int(params['blockLength'])*float(params['stopPercent']))*int(params['blockNumber']))
         else:
-            stopNum=int((int(params['sessionLength'])-int(params['baseline']))*float(params['stopPercent']))
-        if stopNum>100:
-            stopNum=100 # stop number should be less than 100.
-            while stopNum%int(params['blockNumber'])!=0:
+            stopNum = int((int(params['sessionLength'])-int(params['baseline']))*float(params['stopPercent']))
+        if stopNum > 100:
+            stopNum = 100 # stop number should be less than 100.
+            while stopNum%int(params['blockNumber']) != 0:
                 stopNum -= 1
 
         paramsToSend = str(params['stage'])+','+params['direction']+','+params['lh']+','\
@@ -156,7 +163,7 @@ class mainWindow(QMainWindow, Ui_MainWindow):
                            +params['punishment']+','+params['blockLength']+','+params['blockNumber']+','\
                            +params['reward']+','+params['blinkerFreq']+','+params['isLaser']+','\
                            +params['laserFreq']+','+params['pulseDur']+','+params['laserDur']+','+'\n'
-        self.connection.write(paramsToSend)
+        self.connection.write(paramsToSend, append_headers=False)
         self.setParams(params)
 
     def timeElapsedLabelUpdate(self):
@@ -177,27 +184,36 @@ class mainWindow(QMainWindow, Ui_MainWindow):
 
         self.trialNum += 1
         self.trialNumLabel.setText(str(self.trialNum))
-        if stage>2:
-            if self.getParams()['direction']=='l':
+        if stage > 2:
+            if self.getParams()['direction'] == 'l':
                 rt = calRT(data['pokeOutR'],data['pokeInL'])
             else:
                 rt = calRT(data['pokeOutL'],data['pokeInR'])
             # cal initial ssd and send to control program
-            if self.trialNum==int(self.getParams()['baseline']) and stage==5:
-                if np.median(rt)>0:
-                    self.connection.write(str(np.median(rt))+'\n')
+            if self.trialNum == int(self.getParams()['baseline']) and stage == 5:
+                if np.median(rt) > 0:
+                    self.connection.write(str(np.median(rt))+'\n', append_headers=False)
                 else:# If median of rt was less than 0, then stop delay will be set to zero
-                    self.connection.write('0\n')
+                    self.connection.write('0\n', append_headers=False)
 
             cr = calCR(data['trialType'],data['isRewarded'])
             self.goPerfLabel.setText(str(float(cr['GoTrial'])*100)+'%')
             self.stopPerfLabel.setText(str(float(cr['StopTrial'])*100)+'%')
             if len(rt)>0:
                 self.histPlot.update_figure(rt)
+            self.serialMonitor.get_data().save()  # save a temp data in case of program corrupt or power off.
+
+            # play STOP alert
+            if self.trialNum>int(self.getParams()['sessionLength']):
+                if not pg.mixer.music.get_busy():
+                    pg.mixer.music.play()
 
     def sessionEnd(self):
         # restart arduino
-        self.connection.write('r')
+        if self.getParams()['stage'] == '5':
+            self.connection.write('r')
+        else:
+            self.connection.write('r', append_headers=False)
 
         # reset GUI
         self.isRunning=False
@@ -210,12 +226,12 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         self.timerForRuningDisplay.stop()
         self.runingLabel.setVisible(True)
         self.runingLabel.setPixmap(QPixmap('off.png'))#.scaled(self.runingLabel.size()))
-        self.timeSinceStart=0
+        self.timeSinceStart = 0
         self.trialNum = 0
 
         # save data to txt file
         filename = self.saveData()
-        self.resultSaved=True
+        self.resultSaved = True
 
         #if self.getParams()['stage']==5:
         #    ssrt = str(self.getSSRT(filename))
@@ -223,8 +239,9 @@ class mainWindow(QMainWindow, Ui_MainWindow):
 
         # close serial monitor
         if self.serialMonitor is not None:
+            self.serialMonitor.get_data().clear_temp()   # clear temp file 
             self.serialMonitor.stop()
-            self.serialMonitor=None
+            self.serialMonitor = None
 
         print('Session End')
 
@@ -252,48 +269,55 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         while os.path.exists(fileName):
             fileName = fileName[0:-4] + ' new' + '.txt'
         data = self.serialMonitor.get_data().get()
-        f = open(fileName,'w')
-        f.write('General Message:\n')
-        f.write('trialNum: ')   #### line 2
-        f.write(str(len(data['pokeInM']))+' ')
-        for k, v in self.getParams().items():
-            if k in ['lh', 'reward', 'punishment', 'pulseDur', 'laserDur']:
-                v = int(int(v)/1.024)
-            v = str(v)
-            f.write(k+': '+v+ ' ')
-        f.write(str(self.sendParams()))
-        f.write('\nPokeInL\n')
-        f.write(str(data['pokeInL']))   ####line 4
-        f.write('\nPokeOutL\n')
-        f.write(str(data['pokeOutL']))   ### 6
-        f.write('\nPokeInM\n')
-        f.write(str(data['pokeInM']))   ####line 8
-        f.write('\nPokeOutM\n')
-        f.write(str(data['pokeOutM']))   ### 10
-        f.write('\nPokeInR\n')
-        f.write(str(data['pokeInR']))   ####line 12
-        f.write('\nPokeOutR\n')
-        f.write(str(data['pokeOutR']))   ### 14
-        f.write('\nRewardStart\n')
-        f.write(str(data['rewardStart']))  ### 16
-        f.write('\nStopSignalStart\n')
-        f.write(str(data['stopSignalStart']))
-        f.write('\nTrialType\n')
-        f.write(str(data['trialType']))
-        f.write('\nIsRewarded\n')
-        f.write(str(data['isRewarded']))
-        f.write('\nSSDs\n')
-        f.write(str(data['SSDs']))
-        f.write('\nTrials Skipped\n')
-        f.write(str(data['trialsSkipped']))
-        f.write('\nMissed Data\n')
-        f.write(str(data['missedData']))
-        f.write('\nCheck Stop Timeout\n')
-        f.write(str(data['missedStopCheck']))
-        f.write('\nLaser ON Timestamps\n')
-        f.write(str(data['laserOn']))
-        f.write('\n')
-        f.close()
+        with open(fileName, 'w') as f:
+            f.write('General Message:\n')
+            f.write('trialNum: ')   #### line 2
+            f.write(str(len(data['pokeInM']))+' ')
+            for k, v in self.getParams().items():
+                if k in ['lh', 'reward', 'punishment', 'pulseDur', 'laserDur']:
+                    v = int(int(v)/1.024)
+                v = str(v)
+                f.write(k+': '+v+ ' ')
+            f.write(str(self.sendParams()))
+            for name, value in data.items():
+                f.write('\n'+name+'\n')
+                f.write(str(value))
+            f.write('\n')
+        # f.write('\nPokeInL\n')
+        # f.write(str(data['pokeInL']))   ####line 4
+        # f.write('\nPokeOutL\n')
+        # f.write(str(data['pokeOutL']))   ### 6
+        # f.write('\nPokeInM\n')
+        # f.write(str(data['pokeInM']))   ####line 8
+        # f.write('\nPokeOutM\n')
+        # f.write(str(data['pokeOutM']))   ### 10
+        # f.write('\nPokeInR\n')
+        # f.write(str(data['pokeInR']))   ####line 12
+        # f.write('\nPokeOutR\n')
+        # f.write(str(data['pokeOutR']))   ### 14
+        # f.write('\nRewardStart\n')
+        # f.write(str(data['rewardStart']))  ### 16
+        # f.write('\nStopSignalStart\n')
+        # f.write(str(data['stopSignalStart']))
+        # f.write('\nTrialType\n')
+        # f.write(str(data['trialType']))
+        # f.write('\nIsRewarded\n')
+        # f.write(str(data['isRewarded']))
+        # f.write('\nSSDs\n')
+        # f.write(str(data['SSDs']))
+        # f.write('\nTrials Skipped\n')
+        # f.write(str(data['trialsSkipped']))
+        # f.write('\nMissed Data Error\n')
+        # f.write(str(data['missedDataError']))
+        # f.write('\nUnicode Error\n')
+        # f.write(str(data['unicodeError']))
+        # f.write('\nData Length Error\n')
+        # f.write(str(data['dataLengthError']))
+        # f.write('\nLaser ON Timestamps\n')
+        # f.write(str(data['laserOn']))
+        # f.write('\nWho Knows\n')
+        # f.write(str(data['whoKnows']))
+        # f.write('\n')
 
         ##Calculate SSRT
         return fileName
@@ -485,10 +509,6 @@ class MyHistCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=70):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
-        # We want the axes cleared every time plot() is called
-        self.axes.hold(False)
-        #self.axes.xaxis.set_tick_params(labelsize=8)
-        #
         FigureCanvas.__init__(self, fig)
         self.setParent(parent)
 
@@ -498,6 +518,7 @@ class MyHistCanvas(FigureCanvas):
         FigureCanvas.updateGeometry(self)
 
     def update_figure(self, x):
+        self.axes.clear()
         if(len(x)>1):
             x=x/1000
             self.axes.hist(x, color='c', alpha=0.5, bins=20)
@@ -512,7 +533,7 @@ class MyHistCanvas(FigureCanvas):
 # main entry point of the script
 def main():
     speed = 115200   # communication speed
-    port = 'COM3'   # port used for communication
+    port = 'COM4'   # port used for communication
 
     app = QApplication(sys.argv)
     window = mainWindow(port, speed)
