@@ -37,6 +37,11 @@ int pin_photobeamM = A1;
 int pin_photobeamR = A2;
 int pin_power = 12;
 
+bool with_10_noise = true;
+float noise_proportion = 0.33;
+unsigned int noise_hz = 8000;
+unsigned long int reg;
+
 
 //Experimental Configuration
 int threshold_for_photobeam = 500;
@@ -367,8 +372,6 @@ class StopSignal
     tone(stoppin, f, duration);
   }
 }; 
-  
-  
 
 class ExperimentalProcedure
 {
@@ -951,6 +954,7 @@ class Test:public ExperimentalProcedure
   bool lh;   //Limited Hold
   char side;
   bool isStopTrial;
+  bool isNoiseTrial;
   bool stopChecked;
   long limitedHold;
   unsigned long lhStartTime;
@@ -979,6 +983,7 @@ class Test:public ExperimentalProcedure
     side=s;
     lh = false;
     isStopTrial=false;
+    isNoiseTrial=false;
     stopChecked=false;
     lhStartTime=0;
     stopDelayOnTime=0;
@@ -1152,7 +1157,18 @@ class Test:public ExperimentalProcedure
         //  stopChecked=false;
           isStopTrial = checkIfStop(trialNum, stopArray, 0, stopTrialsNum-1);
           if(isStopTrial){
+              if(with_10_noise){
+                if (checkIfNoise()){
+                  writeData("TT",3);
+                  isNoiseTrial=true;
+                  isStopTrial=false;
+                }else{
+                  writeData("TT",2);
+                  isNoiseTrial=false;
+                }
+              }else{
               writeData("TT",2);
+              }
             }else{
               writeData("TT",1);
             }
@@ -1201,7 +1217,11 @@ class Test:public ExperimentalProcedure
             lhStartTime=pokeOutRTime;
             if(!isStopTrial){
               ex_status=pokeInL;
-            }else if(isStopTrial){
+              if(isNoiseTrial){
+                stopSignal->on(noise_hz);
+                isNoiseTrial = false;
+              }
+            }else if(isStopTrial && !isNoiseTrial){
               ex_status=waitToSignalStop;
               stopDelayOnTime=pokeOutRTime;
               stopDelayOn=true;
@@ -1239,6 +1259,11 @@ class Test:public ExperimentalProcedure
           else
             writeData("IR",t);
           stopArrayUpdate(stopSkipped);  //update stop array
+          
+          if(isLaserExp && laserBlue->isOn()){      //laser off
+            laserBlue->off();
+          }
+          
         }else if(stopDelayOn && pbm->isInterrupted()){
           ex_status=wandering;
           stopDelayOn=false;
@@ -1250,6 +1275,11 @@ class Test:public ExperimentalProcedure
           writeData("IM",t);
           writeGoError(side);
           stopArrayUpdate(true);  //update stop array
+          
+          if(isLaserExp && laserBlue->isOn()){      //laser off
+            laserBlue->off();
+          }
+          
         }
         break;
       case pokeInL:
@@ -1511,6 +1541,15 @@ bool checkIfStop(int trialNum, int stopTrials[], int imin, int imax)
   }
 }
 
+bool checkIfNoise(){
+  int num = TrueRandom.random(1, 101);
+  if (num<=100*noise_proportion){
+    return true;
+  }else{
+    return false;
+  }
+}
+
 ExperimentalProcedure * ep;
 Stage1 s1;
 Stage2 s2;
@@ -1570,11 +1609,16 @@ void setup()
   }else if(stage==5){
     // generated random trial numbers blockwise.
     int stopNumInBlock = stopNum/blockNumber;
-    int tempArray[stopNumInBlock];
+    int noise_number = 0;
+    if (with_10_noise){
+      noise_number = floor(stopNumInBlock / (1/noise_proportion - 1));
+    }
+    
+    int tempArray[stopNumInBlock+noise_number];
     for(int i=0;i<blockNumber;i++){
-      generateStopTrialNum(tempArray, 1, blockLength+1, stopNumInBlock);
-      for(int j=0;j<stopNumInBlock;j++){
-        stopNumArray[i*stopNumInBlock+j]=tempArray[j]+baseline+blockLength*i;
+      generateStopTrialNum(tempArray, 1, blockLength+1, stopNumInBlock+noise_number);
+      for(int j=0;j<stopNumInBlock+noise_number;j++){
+        stopNumArray[i*(stopNumInBlock+noise_number)+j]=tempArray[j]+baseline+blockLength*i;
       }
     }
     laser.setParams(laserFreq, pulseDur, laserDur);

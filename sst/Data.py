@@ -12,7 +12,7 @@ class Data(object):
     data encapsulation
     '''
     def __init__(self):
-        self.temp_file_name = '.sst_data_temp'
+        self.temp_file_name = 'sst_data_temp.txt'
         self.poke_in_l = []
         self.poke_out_l = []
         self.poke_in_r = []
@@ -66,7 +66,7 @@ class Data(object):
                 self.ssd.append(timestamp/1.024)
             elif event == 'TS':#trialSkipped
                 self.trials_skipped.append(int(timestamp))
-            elif event == 'L':#Laser on timestamps
+            elif event[0] == 'L':#Laser on timestamps
                 self.laser_on.append(timestamp/1.024)
             elif event == 'UnicodeError':
                 self.unicode_error.append(timestamp)

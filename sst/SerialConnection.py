@@ -55,7 +55,7 @@ class SerialConnection(object):
                         self.each_data = bytearray()
                     else:
                         self.complete_data.put(self._process_each_data(self.each_data[:6]))
-                        self.each_data = self.data[6:]
+                        self.each_data = self.each_data[6:]
                 elif _ == self.START_MARKER.encode():
                     self.read_in_process = True
         return self.complete_data
